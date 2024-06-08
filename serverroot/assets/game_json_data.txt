@@ -1,0 +1,1030 @@
+{
+    "dialogue": {
+        "scenes": {
+            "tutorial water scene": {
+                "textLines": [
+                    "This water looks fresh enough. Its not like I'm going to be able to get a drink anywhere else so I might as well drink now.",
+                    "Here goes.",
+                    ".................... *gulp* .......... *gulp* .........................................",
+                    "Suprisingly good 水. This might not be so bad of a place."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 2
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 4
+                    },
+                    {
+                        "textSpeed": 30
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 0,
+                        "textSpeed": 120,
+                        "dysymbolia": ["水",["water","mizu"],"hsl(200, 100%, 80%)","水"],
+                        "particleSystem": {
+                            "hue": [135], "saturation": [58], "lightness": [68],
+                            "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 6, "particleLifespan": 600
+                        }
+                    }
+                ]
+            },
+            "tutorial cloud scene": {
+                "textLines": [
+                    "What is this...",
+                    "These are... 雲? And this island is floating?"
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 4
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 4,
+                        "dysymbolia": ["雲",["cloud","clouds","kumo"],"#737373","雲"],
+                        "particleSystem": {
+                                "hue": [0,0], "saturation": [0,0], "lightness": [100,85],
+                                "particlesPerSec": 30, "drawParticles": 0, "newParticle": 1,
+                                "particleSize": 8, "particleLifespan": 700
+                        }
+                    }
+                ]
+            },
+            "tutorial fruit scene": {
+                "textLines": [
+                    "What a beautiful looking fruit. What a shame that it's in such a suspicious pla-",
+                    "*groooooooooooooowl*",
+                    "..............",
+                    "... Alright fine, I'll take 一つ."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 0
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 9,
+                        "textSpeed": 12
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 2,
+                        "textSpeed": 30
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 5,
+                        "textSpeed": 30,
+                        "dysymbolia": ["一",["one"],"white","一つ"],
+                        "particleSystem": {
+                            "hue": [0], "saturation": [30], "lightness": [80],
+                            "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 4, "particleLifespan": 1400, "particleSpeed": 20
+                        },
+                        "takeFruit": true
+                    }
+                ]
+            },
+            "tutorial dungeon scene": {
+                "textLines": [
+                    "Here it is... the dark, suspicious stairs. Just what I needed. I guess I should probably go down there though, there might be something important.",
+                    "Who knows, maybe even a person, this place looks tended to after all.",
+                    "It can't be that bad, let's just take a peep. You can do it, you can do it, you can do it...",
+                    "Abort, abort, abort, have to run... why did it have to be this close to the entrance???",
+                    ""
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 4
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 0
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 13
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 9,
+                        "areaChange": "Floating_Island_Dungeon_0",
+                        "connectionId": "first",
+                        "takeEnemyTurn": 1
+                    },
+                    {}
+                ]
+            },
+            "tutorial dungeon scene 2": {
+                "textLines": [
+                    "Ow... why does it have to attack me???",
+                    "An enemy has made contact, so you are now in combat. When you make an action, the enemy will also have a chance to take an action, so choose wisely. Although, you can only run and press Z for a normal attack, right now.",
+                    "Fortunately, you are still right by the stairs, so you can use it to escape."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 9
+                    },
+                    {},
+                    {}
+                ]
+            },
+            "post dysymbolia 1": {
+                "textLines": [
+                    "Ow... that stung, what was that? It felt like some force was interfering with my thoughts.",
+                    "I should keep looking around the island."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 9
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 2
+                    }
+                ]
+            },
+            "post dysymbolia 2": {
+                "textLines": [
+                    "It happened again... I have a feeling its going to keep happening.",
+                    "I should keep looking around the island."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 9
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 2
+                    }
+                ]
+            },
+            "post dysymbolia 3": {
+                "textLines": [
+                    "That hurt as usual, there has to be something that'll help me around here though.",
+                    "I should keep looking around the island."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 9
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 2
+                    }
+                ]
+            },
+            "post dysymbolia 4": {
+                "textLines": [
+                    "I can feel it... aside from the pain. I'm getting something out of this. And I feel close to being able to figure out a way to control this a little.",
+                    "I should keep looking around and try and make that happen one more time."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 9
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 2
+                    }
+                ]
+            },
+            "post dysymbolia 5": {
+                "textLines": [
+                    "I feel an unfamiliar power. And I think I know how to use it somehow.",
+                    "Before doing anything else, it might be a good idea to use this up first.",
+                    "(Try looking in the abilities tab in the menu)."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 0
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 0
+                    },
+                    {
+
+                    }
+                ]
+            },
+            "opening scene": {
+                "textLines": [
+                    "...",
+                    ".....",
+                    ".........................",
+                    "...Urg.......",
+                    "...",
+                    "Where... am I?",
+                    "Thirsty... hungry... and something else feels off too. Something unpleasant.",
+                    "Let's look around for now, at least a little bit."
+                ],
+                "lineInfo": [
+                    {
+                        "textSpeed": 100000
+                    },
+                    {
+                        "textSpeed": 100000
+                    },
+                    {
+                        "textSpeed": 100000
+                    },
+                    {
+
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 9
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 5
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 2
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 2
+                    }
+                ]
+            }
+        },
+        "characterDialogue": {
+            "Gladius": {
+                "initial": {
+                    "textLines": [
+                        "Hello playerName, how are you doing on this fine spring day?",
+                        "Great!",
+                        "Hey its nobody here here to say: no body!!!! hahahahah ahahahaha. i lied, im not nobody, im the devil of arch-hunger."
+                    ],
+                    "lineInfo": [
+                        {
+                            "face": "Gladius",
+                            "faceNum": 0
+                        },
+                        {
+                            "face": "player",
+                            "faceNum": 0
+                        },
+                        {}
+                    ]
+                }
+            },
+            "Andro": {},
+            "Lizard": {
+                "initial": {
+                    "textLines": [
+                        "I Will Eat You !"
+                    ],
+                    "lineInfo": [
+                        {}
+                    ]
+                }
+            }
+        },
+        "worldDialogue": {
+            "clouds": {
+                "textLines": [
+                    "I wonder how far up this is in the sky? It's impossible to tell from here."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 4
+                    }
+                ]
+            },
+            "water": {
+                "textLines": [
+                    "The bristling water is beautiful. I've got a lot of other things to worry about than that right now though."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 1
+                    }
+                ]
+            },
+            "sunflower": {
+                "textLines": [
+                    "A lone sunflower in a place like this? Looks amazingly healthy but no seeds, strange.",
+                    "................",
+                    "No painful thought-interference this time? Thats a relief, but I wonder what causes it..."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 1
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 5,
+                        "textSpeed": 30,
+                        "conditional": "is wary of scene dysymbolia",
+                        "conditionalFail": "end",
+                        "conditionalSuccess": "continue"
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 2
+                    }
+                ]
+            },
+            "fruit_tree": {
+                "textLines": [
+                    "I'll leave the rest of these alone for now, somehow I have a feeling someone will be mad."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 1
+                    }
+                ]
+            }
+        },
+        "randomDysymbolia": {
+            "first": {
+                "textLines": [
+                    ".........",
+                    "Ugh.......... my head...",
+                    ""
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 9,
+                        "textSpeed": 20
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 9,
+                        "textSpeed": 40,
+                        "conditional": "is wary of scene dysymbolia",
+                        "conditionalFail": "continue",
+                        "conditionalSuccess": "altText",
+                        "altText": "Even though I'm just walking around, it's here again... ugh..."
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 9,
+                        "randomDysymbolia": true,
+                        "particleSystem": {
+                            "hue": [0], "saturation": [30], "lightness": [80],
+                            "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 4, "particleLifespan": 1400, "particleSpeed": 20
+                        }
+                    }
+                ]
+            },
+            "auto": {
+                "textLines": [
+                    "It's coming.",
+                    "..."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 9
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 9,
+                        "randomDysymbolia": true,
+                        "particleSystem": {
+                            "hue": [0], "saturation": [30], "lightness": [80],
+                            "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 4, "particleLifespan": 1400, "particleSpeed": 20
+                        }
+                    }
+                ]
+            }
+        },
+        "abilityAcquisition": {
+            "Basic Dysymbolia Mastery": {
+                "textLines": [
+                    "Time to show this thing what's boss. Focus...",
+                    "...",
+                    "Succeed in capturing all the following kanji and the ability is yours! And don't worry, if you fail, you can try again as many times as you want. You'll probably have to try several times.",
+                    "",
+                    "Ugh, I didn't quite get it this time. I know I can do it though. Should I try again?",
+                    "I think I managed to get it this time! There's no way this won't help.",
+                    "Make sure to remember to equip it in the menu!"
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 13
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 14
+                    },
+                    {
+
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 14,
+                        "abilityAcquisition": true,
+                        "normalTrials": 3,
+                        "specialTrials": 2,
+                        "particleSystem": {
+                            "hue": [0], "saturation": [30], "lightness": [80],
+                            "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 4, "particleLifespan": 1400, "particleSpeed": 20
+                        },
+                        "specialParticleSystem": {
+                            "hue": [280], "saturation": [100], "lightness": [70],
+                            "particlesPerSec": 30, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 5, "particleLifespan": 700, "particleSpeed": 40
+                        }
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 9,
+                        "playerResponses": ["Yes","No"],
+                        "selectedResponse": 0,
+                        "responseEffects": ["jump to 2","end"]
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 13
+                    },
+                    {
+
+                    }
+                ]
+            }
+        }
+    },
+    "kanji": [
+        {
+            "symbol": "一",
+            "keyword": "One",
+            "story": "The one is written sideways."
+        },
+        {
+            "symbol": "二",
+            "keyword": "Two",
+            "story": "1 and 1 makes 2."
+        },
+        {
+            "symbol": "三",
+            "keyword": "Three",
+            "story": "1 and 1 and 1 makes 3."
+        },
+        {
+            "symbol": "五",
+            "keyword": "Five",
+            "story": "Three with two extra vertical lines 2+3=5."
+        },
+        {
+            "symbol": "七",
+            "keyword": "Seven",
+            "story": "It's upside down, and crossed european style, but definitely a 7."
+        },
+        {
+            "symbol": "八",
+            "keyword": "Eight",
+            "story": "It's upside down, and crossed european style, but definitely a 7."
+        },
+        {
+            "symbol": "四",
+            "keyword": "Four",
+            "story": "It's all within 4 walls."
+        },
+        {
+            "symbol": "西",
+            "keyword": "West",
+            "story": "The one is written sideways."
+        },
+        {
+            "symbol": "匹",
+            "keyword": "Crude",
+            "story": "If you use a crude approximation of pi, the circle doesn't go all the way around."
+        },
+        {
+            "symbol": "六",
+            "keyword": "Six",
+            "story": "Three lines pointing out from a central intersection, and a line halved: six can be halved or divided by three."
+        },
+        {
+            "symbol": "穴",
+            "keyword": "Hole",
+            "story": "A roof over a chasm; holes in the ground are dangerous, and should be covered like this one."
+        },
+        {
+            "symbol": "九",
+            "keyword": "Nine",
+            "story": "A bit of the unenclosed shapes of four and five: 4+5=9."
+        },
+        {
+            "symbol": "丸",
+            "keyword": "Circle",
+            "story": "Nine with one more to round off."
+        },
+        {
+            "symbol": "力",
+            "keyword": "Power",
+            "story": "A left hand pressing downward so powerfully that the fingers are bent back."
+        },
+        {
+            "symbol": "万",
+            "keyword": "Ten-Thousand",
+            "story": "This evolved from the ancient swastika, which once meant ten-thousand gods. It kept its four arms, but only one maintains the swirl."
+        },
+        {
+            "symbol": "方",
+            "keyword": "Direction",
+            "story": "An old man, leaning on a cane, wearing a hat, who is lost and asking directions."
+        },
+        {
+            "symbol": "刀",
+            "keyword": "Knife",
+            "story": "The curved blade, chisel point, and cross-guard of a Japanese-style knife."
+        },
+        {
+            "symbol": "刃",
+            "keyword": "Edge",
+            "story": "A knife with the non-edge side crossed out."
+        },
+        {
+            "symbol": "十",
+            "keyword": "Ten",
+            "story": "A one with a vertical cross to indicate that it is moved to a higher decimal position, making ten."
+        },
+        {
+            "symbol": "千",
+            "keyword": "Thousand",
+            "story": "Ten cubed is a thousand (the three lines indicate 3 dimensions)."
+        },
+        {
+            "symbol": "土",
+            "keyword": "Earth",
+            "story": "Something growing from the earth."
+        },
+        {
+            "symbol": "士",
+            "keyword": "Knight",
+            "story": "An important person who can muster at least ten soliers from their land."
+        },
+        {
+            "symbol": "干",
+            "keyword": "Dry",
+            "story": "Your knight got all wet? Just hang them upside down to dry off!"
+        },
+        {
+            "symbol": "工",
+            "keyword": "Craft",
+            "story": "A carpenter's ruler.."
+        },
+        {
+            "symbol": "上",
+            "keyword": "Up",
+            "story": "Pointing up from the base."
+        },
+        {
+            "symbol": "下",
+            "keyword": "Down",
+            "story": "Pointing down from the crossbeams of the ceiling."
+        },
+        {
+            "symbol": "人",
+            "keyword": "Person",
+            "story": "Standing on two legs."
+        },
+        {
+            "symbol": "入",
+            "keyword": "Enter",
+            "story": "Two streams flow together, the smaller entering the larger."
+        },
+        {
+            "symbol": "火",
+            "keyword": "Fire",
+            "story": "Flames flicker over the woodpile."
+        },
+        {
+            "symbol": "小",
+            "keyword": "Small",
+            "story": "Two fingers picking up a small pin."
+        },
+        {
+            "symbol": "大",
+            "keyword": "Big",
+            "story": "A person with arms outstretched to indicate something big."
+        },
+        {
+            "symbol": "丈",
+            "keyword": "Length",
+            "story": "The person from big is disconnecting their leg so they can hold it and show how long it is."
+        },
+        {
+            "symbol": "木",
+            "keyword": "Tree",
+            "story": "A simple picture of a tree trunk and branches."
+        },
+        {
+            "symbol": "本",
+            "keyword": "Origin",
+            "story": "The tree grows from the root. What it grows from is its origin."
+        },
+        {
+            "symbol": "末",
+            "keyword": "Tip",
+            "story": "The top tip of the tree is made big to show that's what we are talking about."
+        },
+        {
+            "symbol": "未",
+            "keyword": "Not-Yet",
+            "story": "Ungrown tip: The top tip of the tree is made small to show that it has not yet grown."
+        },
+        {
+            "symbol": "天",
+            "keyword": "Heaven",
+            "story": "The big person is trying to show how big the heavens are, but it's above them and bigger than their arms can show."
+        },
+        {
+            "symbol": "夭",
+            "keyword": "Early Death",
+            "story": "When the heavens are out of joint, something terrible will happen."
+        },
+        {
+            "symbol": "林",
+            "keyword": "Woods",
+            "story": "Some trees in the woods."
+        },
+        {
+            "symbol": "森",
+            "keyword": "Forest",
+            "story": "Many trees in the forest."
+        },
+        {
+            "symbol": "炎",
+            "keyword": "Flame",
+            "story": "Double fire means flames."
+        },
+        {
+            "symbol": "協",
+            "keyword": "Cooperation",
+            "story": "Ten (left) with triple power (right) shows how many working together accomplish three times what they could do alone."
+        },
+        {
+            "symbol": "功",
+            "keyword": "Merit",
+            "story": "Craft (left) and power (right): quality and utility taken together mean merit."
+        },
+        {
+            "symbol": "仕",
+            "keyword": "Serve",
+            "story": "A person (left) serving a knight (right)."
+        }
+    ],
+    "theory": [
+        {
+            "title": "Welcome to currently unnamed kanji learning game!",
+            "description": "Learn about the very basics of this game.",
+            "unlockText": "Be an absolutely wonderful human being!",
+            "unlockRequirements": [
+                {
+                    "type": "free",
+                    "number": 1,
+                    "progress": 1,
+                    "textDescription": "Be an absolutely wonderful human being!"
+                }
+            ],
+            "rewardText": "5 gems.",
+            "unlockRewards": [
+                {
+                    "type": "currency 2",
+                    "number": 5
+                }
+            ],
+            "currentPage": 0,
+            "pages": [
+                " Welcome to currently unnamed kanji learning game! Let's review the basic controls: \n \n Use the arrow keys to move around. Press Z to interact with things in front of you. Try interacting with a lot of things! Hover your mouse over items and conditions for information on them. You might have to use the rest of your keyboard to type at times. I wonder what that dysymbolia thing is all about? \n \n Hope you liked those 5 gems I gave you, they are very pretty. If you want more, try unlocking more theory pages! I explain what this theory tab is all about in the next page. You could read it if you want. Or you could just grab the gems and leave without reading it, I won't judge (maybe just a little bit). \n \n - Sarracenia"
+            ]
+        },
+        {
+            "title": "What is this theory tab?",
+            "description": "Learn what this menu tab is for and how to use it.",
+            "rewardText": "5 gems.",
+            "unlockRequirements": [
+                {
+                    "type": "statistic threshold",
+                    "stat": "stepCount",
+                    "number": 150,
+                    "progress": 0,
+                    "textDescription": "Walk 150 steps."
+                }
+            ],
+            "unlockRewards": [
+                {
+                    "type": "currency 2",
+                    "number": 5,
+                    "progress": 0
+                }
+            ],
+            "currentPage": 0,
+            "pages": [
+                " What is this theory tab, you ask? I'm glad you asked. Wait, before you keep reading! You don't have to read this! You can take the gems and do literally anything else you want to do instead! This tab will be unlocked for all of time for you so come back whenever you want, well, unless you start a new save, or lose this one (I'll do my best to try to make sure that doesn't happen). You could also just never come back. \n \n The point is, you could skip these and be fine, and you definitely don't have to read them in order. In the theory tab you are on right now, you unlock my write-ups in English and you can read whichever ones you are interested in, either way you can get cool rewards so its a win-win.",
+                " You'll unlock write-ups about a variety of topics: \n - How to use certain game features and tips and tricks for using them. \n - The point behind the different aspects in the game and why they are designed the way they are for you to help you best learn Japanese, and tips and tricks for making the most out of them for your personal language learning journey and goals \n - How I suggest you learn Japanese in general. \n - My own explainations for basic grammar topics in Japanese in case you don't feel like finding a different resource for that which I may or may not help you find! \n - Plus more, maybe? \n \n Also at the bottom of the tab is a special section that can help you in the game if you don't know what to do next. You unlocked it by also unlocking this write-up. At least, if I bothered to implement that yet lol. (I haven't.) \n \n See you in the next one, or not! \n \n - Sarracenia"
+            ]
+        },
+        {
+            "title": "Why am I learning kanji like this?",
+            "description": "Learn why this is the best way for you to learn kanji.",
+            "rewardText": "5 gems.",
+            "unlockRequirements": [
+                {
+                    "type": "statistic threshold",
+                    "stat": "totalKanjiMastery",
+                    "number": 20,
+                    "progress": 0,
+                    "textDescription": "Gain 20 total kanji mastery level."
+                }
+            ],
+            "unlockRewards": [
+                {
+                    "type": "currency 2",
+                    "number": 5,
+                    "progress": 0
+                }
+            ],
+            "currentPage": 0,
+            "pages": [
+                " Because I said so lol \n \n - Sarracenia"
+            ]
+        }
+    ],
+    "abilities": [
+        {
+            "name": "Basic Dysymbolia Mastery",
+            "jpName": "ディシンボリアの基本制御",
+            "description": " Through experience with how it works and exerting some internal control, you are able to tame your dysymbolia a little. \n \n Equipping this passive ability increases your curse resistance by 10% and doubles the time between automatic dysymbolia triggers, but more importantly, after acquiring this ability, you can trigger dysymbolia by clicking the dysymbolia condition without even equpping this.",
+            "types": [
+                "passive",
+                "static",
+                "dysymbolia"
+            ],
+            "passive effects": [
+                {
+                    "type": "resistance",
+                    "attributes": ["curse"],
+                    "number": 10
+                },
+                {
+                    "type": "double dysymbolia timer"
+                }
+            ],
+            "static effects": [
+                {
+                    "type": "basic dysymbolia control"
+                }
+            ],
+            "listRequirements": [],
+            "unlockRequirements": [
+                {
+                    "type": "free",
+                    "number": 1,
+                    "progress": 1,
+                    "textDescription": "Find the abilities menu tab! (Difficulty: Impossible)"
+                }
+            ],
+            "acquisitionPower": 5,
+            "maxLevel": 1,
+            "specialKanji": ["木","本"]
+        },
+        {
+            "name": "Suppress Dysymbolia",
+            "description": " Through more experience with dysymbolia, you figure out you can turn it off indefinitely, at a cost. \n \n Equipping this removes the dysymbolia condition, reduces your max HP by 10%, and disables all dysymbolia abilities, until it is unequipped.",
+            "types": ["passive"],
+            "passive effects": [
+                {
+                    "type": "remove dysymbolia"
+                },
+                {
+                    "type": "max hp multiplier",
+                    "number": -0.1
+                }
+            ],
+            "listRequirements": [
+                {
+                    "type": "acquired ability",
+                    "ability": "Basic Dysymbolia Mastery",
+                    "number": 1
+                }
+            ],
+            "unlockRequirements": [
+                {
+                    "type": "statistic threshold",
+                    "stat": "totalDysymboliaManualTriggers",
+                    "number": 5,
+                    "progress": 0,
+                    "textDescription": "Manually trigger dysymbolia 5 times."
+                }
+            ],
+            "acquisitionPower": 5,
+            "maxLevel": 1,
+            "specialKanji": []
+        },
+        {
+            "name": "Body Strengthen",
+            "description": " Channel your power towards strengthening your physical abilities. \n \n When equipped, increases your max hp by 10% and your basic attack strength by 50% per level. Also, just having it acquired increases your base attack damage by 1 per level.",
+            "types": ["passive", "static"],
+            "passive effects": [
+                {
+                    "type": "increase max hp",
+                    "levelScaling": "linear",
+                    "number": 10
+                },
+                {
+                    "type": "increase basic attack strength",
+                    "levelScaling": "linear",
+                    "number": 50
+                }
+            ],
+            "static effects": [
+                {
+                    "type": "increase base basic attack strength",
+                    "levelScaling": "linear",
+                    "number": 1
+                }
+            ],
+            "listRequirements": [
+                {
+                    "type": "acquired ability",
+                    "ability": "Basic Dysymbolia Mastery",
+                    "number": 1
+                }
+            ],
+            "unlockRequirements": [
+                {
+                    "type": "statistic threshold",
+                    "stat": "totalDamageTaken",
+                    "number": 25,
+                    "progress": 0,
+                    "textDescription": "Take 25 total damage."
+                }
+            ],
+            "maxLevel": 4,
+            "acquisitionPower": 5,
+            "specialKanji": ["木","本","体"],
+            "levelingInfo": {}
+        },
+        {
+            "name": "Increase Max Power",
+            "description": " Channel your dysymbolia power in on itself and use it to increase your maximum dysymbolia power.",
+            "types": ["static"],
+            "static effects": [
+                {
+                    "type": "increase max power",
+                    "levelScaling": "linear",
+                    "number": 5
+                }
+            ],
+            "listRequirements": [
+                {
+                    "type": "acquired ability",
+                    "ability": "Basic Dysymbolia Mastery",
+                    "number": 1
+                }
+            ],
+            "unlockRequirements": [
+                {
+                    "type": "acquired ability",
+                    "ability": "Body Strengthen",
+                    "number": 1,
+                    "level": 1,
+                    "progress": 0,
+                    "textDescription": "Acquire Body Strengthen."
+                }
+            ],
+            "maxLevel": 20,
+            "acquisitionPower": 5,
+            "specialKanji": [],
+            "levelingInfo": {}
+        },
+        {
+            "name": "Dysymbolia Touch",
+            "description": " You managed to power up your touch at least. \n \n -Channel 2-, then deal damage based on the result.",
+            "types": ["active", "combat", "dysymbolia"],
+            "active effects": [
+                {
+                    "type": "dysymbolia damage",
+                    "channel": 2,
+                    "base power": 2,
+                    "power per success": 3
+                }
+            ],
+            "listRequirements": [
+                {
+                    "type": "acquired ability",
+                    "ability": "Increase Max Power",
+                    "number": 1
+                }
+            ],
+            "unlockRequirements": [
+
+            ],
+            "maxLevel": 5,
+            "acquisitionPower": 10,
+            "specialKanji": [],
+            "levelingInfo": {}
+        },
+        {
+            "name": "Dysymbolia-induced Growth",
+            "description": " Only seems to work on some plants and has unusual results, not like natural growth. But it may be helpful? \n \n -Channel 4-, then attempt to induce growth in a plant. A better channel result will lead to a greater likelihood of getting a rarer or more desirable growth result.",
+            "types": ["active", "dysymbolia"],
+            "active effects": [
+                {
+                    "type": "growth"
+                }
+            ],
+            "listRequirements": [
+                {
+                    "type": "acquired ability",
+                    "ability": "Increase Max Power",
+                    "number": 1
+                }
+            ],
+            "unlockRequirements": [
+                {
+                    "type": "statistic threshold",
+                    "ability": "fruitsDiscovered",
+                    "number": 3,
+                    "progress": 0,
+                    "textDescription": "Discover 3 different fruits."
+                }
+            ],
+            "maxLevel": 4,
+            "acquisitionPower": 10,
+            "specialKanji": [],
+            "levelingInfo": {}
+        }
+    ],
+    "items": [
+        {
+            "name": "Love Fruit",
+            "desc": "A mysterious fruit shaped like a heart. Like everything else on this floating island, it looks too good to be true. Heals $healAmount$ HP when consumed, and like any other food, cures hunger. (Double click to use items!).",
+            "type": "Consumable",
+            "color": "red",
+            "subtypes": ["food"],
+            "stack": true,
+            "imageLocationInfo": ["tile",0,[32,64]],
+            "effectList": ["heal","satiate"],
+            "effects": {
+                "healAmount": 10,
+                "satiation": "normal"
+            }
+        }
+    ],
+    "enemies": [
+        {
+            "name": "Green Lizard",
+            "jpName": "緑トカゲ",
+            "color": "#a8ffa8",
+            "hp": 15,
+            "actions": [
+                {
+                    "name": "bite",
+                    "power": 4,
+                    "animation": 0,
+                    "text": "Green Lizard bit Mari dealing {damage} damage!"
+                },
+                {
+                    "name": "toxic tongue",
+                    "power": 2,
+                    "condition": {
+                        "name": "Lizard Toxin",
+                        "color": "#4f0",
+                        "desc": "Poisoned with a small lizards' toxin. It doesn't make you feel *too* sick and wears off quickly although you should still be careful. Losing a small amount of HP and brings you closer to hunger. $turnsLeft$ turns left.",
+                        "minDuration": 2,
+                        "maxDuration": 4
+                    },
+                    "animation": 0,
+                    "text": "Green Lizard used its toxic tongue dealing {damage} damage and poisoning Mari!"
+                }
+            ],
+            "aiInfo": {
+                "type": "random",
+                "pool": [0,0,1]
+            },
+            "kanji": ["四","刃","小"]
+        }
+    ]
+}

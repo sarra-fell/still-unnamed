@@ -469,6 +469,48 @@
 
                     }
                 ]
+            },
+            "Suppress Dysymbolia": {
+                "textLines": [
+                    "Sometimes the symbols popping up in my head can get annoying. I feel like I should be able to stop it from coming altogether when I don't want it. Let's try it...",
+                    "",
+                    "Ugh, I didn't quite get it this time. Should I try again?",
+                    "Managed to get it down! It's kind of tiring to use but might be alright from time to time."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 13
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 14,
+                        "abilityAcquisition": true,
+                        "normalTrials": 3,
+                        "specialTrials": 2,
+                        "particleSystem": {
+                            "hue": [0], "saturation": [30], "lightness": [80],
+                            "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 4, "particleLifespan": 1400, "particleSpeed": 20
+                        },
+                        "specialParticleSystem": {
+                            "hue": [280], "saturation": [100], "lightness": [70],
+                            "particlesPerSec": 30, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 5, "particleLifespan": 700, "particleSpeed": 40
+                        }
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 9,
+                        "playerResponses": ["Yes","No"],
+                        "selectedResponse": 0,
+                        "responseEffects": ["jump to 2","end"]
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 13
+                    }
+                ]
             }
         }
     },
@@ -775,6 +817,7 @@
         {
             "name": "Basic Dysymbolia Mastery",
             "jpName": "ディシンボリアの基本制御",
+            "jpNameWithSeperators": "ディシンボリア+の+基本+制御",
             "description": " Through experience with how it works and exerting some internal control, you are able to tame your dysymbolia a little. \n \n Equipping this passive ability increases your curse resistance by 10% and doubles the time between automatic dysymbolia triggers, but more importantly, after acquiring this ability, you can trigger dysymbolia by clicking the dysymbolia condition without even equpping this.",
             "types": [
                 "passive",
@@ -811,7 +854,7 @@
         },
         {
             "name": "Suppress Dysymbolia",
-            "description": " Through more experience with dysymbolia, you figure out you can turn it off indefinitely, at a cost. \n \n Equipping this removes the dysymbolia condition, reduces your max HP by 10%, and disables all dysymbolia abilities, until it is unequipped.",
+            "description": " Equipping this removes the dysymbolia condition, reduces your max HP by 10%, and disables all dysymbolia abilities, until it is unequipped.",
             "types": ["passive"],
             "passive effects": [
                 {
@@ -980,17 +1023,39 @@
     "items": [
         {
             "name": "Love Fruit",
-            "desc": "A mysterious fruit shaped like a heart. Like everything else on this floating island, it looks too good to be true. Heals $healAmount$ HP when consumed, and like any other food, cures hunger. (Double click to use items!).",
+            "desc": "A mysterious fruit shaped like a heart. Like everything else on this floating island, it looks too good to be true. Heals $healAmount$ HP when consumed and fills you up somewhat. (Double click to use items!).",
             "type": "Consumable",
             "color": "red",
             "subtypes": ["food"],
             "stack": true,
-            "imageLocationInfo": ["tile",0,[32,64]],
+            "imageInfo": ["tile",0,[32,64],1.6],
+            "effectList": ["heal","satiate"],
+            "effects": {
+                "healAmount": 15,
+                "satiation": "normal"
+            }
+        },
+        {
+            "name": "Love Berries",
+            "desc": "Some berries you found on the floating island. They don't look like much but they are the best berries you have ever tasted. Heals $healAmount$ HP when consumed and fills you up a little.",
+            "type": "Consumable",
+            "color": "red",
+            "subtypes": ["food"],
+            "stack": true,
+            "imageInfo": ["tile",0,[128,96],0.9],
             "effectList": ["heal","satiate"],
             "effects": {
                 "healAmount": 10,
-                "satiation": "normal"
+                "satiation": "small"
             }
+        },
+        {
+            "name": "Dev Gun",
+            "desc": "Reality bends to your will.",
+            "type": "Special",
+            "color": "blue",
+            "subtypes": [],
+            "imageInfo": ["gun"]
         }
     ],
     "enemies": [

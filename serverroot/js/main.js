@@ -45,6 +45,7 @@ var globalPlayerStatisticData = {
     totalKanjiMastery: 0,
     totalPowerGained: 0,
     totalDamageTaken: 0,
+    totalDamageDealt: 0,
 }
 
 //var globalMenuTabList = ["Inventory","Abilities","Kanji List","Theory","Settings","Save"];
@@ -1300,6 +1301,7 @@ function useItem(playerInventoryData,playerCombatData,playerConditions,inventory
             movingAnimationDuration = 200;
             globalWorldData.speedMode = false;
         }
+        playerCombatData.power++;
     } else {
         for(const eff of info.effectList){
             if(eff === "heal"){
@@ -1600,6 +1602,145 @@ function isCollidingOnTile(x, y, checkAdjacent = false){
     return null;
 }
 
+// Return a dysymbolia cinematic object which stores state about how it will play out and its current state
+let newDysymboliaCinematic = function(timeStamp, phase, trials, dysymboliaInfo, startTime = timeStamp, trialedKanjiIndexes = [], specialTrials = 0){
+    if(dysymboliaInfo.length > 4){
+        trialedKanjiIndexes.push(dysymboliaInfo[4]);
+    }
+    return {
+        type: "dysymbolia",
+        startTime: startTime,
+        phaseStartTime: timeStamp,
+        // Phase 0 is the introduction phase where the text line is shown but no input has started yet.
+        // Phase 1 starts with the z key and the player is to input their answer
+        // Phase 2 is when the answer is inputted and an animation shows the answer.
+        // Phase 3 is when the story of the last trial or the whole text line is to be checked before going on to the next trial,
+        //or ending when z is pressed. Skipped when the player gets the kanji right and indicates to go straight to the next trial
+        // The cinematic ends when the z key is pressed during phase 3
+        phaseNum: phase,
+
+        // Subject to refactoring but currently:
+        // info[0] is the kanji symbol
+        // info[1] is an array of corrrect answers that can be given
+        // info[2] is the color of the kanji when it is appropiate to color it
+        // info[3] is the entire word of the dysymbolia in the dialogue sentence
+        info: dysymboliaInfo,
+        particleSystem: particleSystems[particleSystems.length-1],
+        trialsLeft: trials,
+        specialTrialsLeft: specialTrials,
+        //trialedKanji: trialedKanji,
+        // Indexes are their index in the player kanjidata array
+        trialedKanjiIndexes: trialedKanjiIndexes,
+
+        // True when the animation finishes
+        animationFinished: false,
+        finished: false,
+        result: null,
+
+        // Will apply effects after the animation is finished when this is still false
+        tooltipsRegistered: false,
+    };
+}
+
+// Get the kanji with the highest study priority and return its playerKanjiData entry
+let getNextKanji = function(playerKanjiData, srsData, noNewKanji = false, acquiringAbility = null){
+    let currentDate = new Date();
+    let highestPriorityIndex = 0;
+    if(acquiringAbility === null){
+        let priority = assignStudyPriority(srsData,playerKanjiData[0],currentDate,noNewKanji);
+        let highestPriority = priority;
+
+        for(let i=1;i<playerKanjiData.length;i++){
+            priority = assignStudyPriority(srsData,playerKanjiData[i],currentDate,noNewKanji);
+            if(priority>highestPriority){
+                highestPriority = priority;
+                highestPriorityIndex = i;
+            }
+        }
+    } else {
+        let specialKanji = abilityFileData[acquiringAbility].specialKanji;
+        let priority = assignStudyPriority(srsData,playerKanjiData[specialKanji[0]],currentDate,false);
+        let highestPriority = priority;
+        highestPriorityIndex = specialKanji[0];
+
+        for(let i=1;i<specialKanji.length;i++){
+            priority = assignStudyPriority(srsData,playerKanjiData[specialKanji[i]],currentDate,false);
+            if(priority>highestPriority){
+                highestPriority = priority;
+                highestPriorityIndex = specialKanji[i];
+            }
+        }
+    }
+
+    return playerKanjiData[highestPriorityIndex];
+}
+
+// All enemies in the room get a chance to make one action
+let takeEnemyActions = function(timeStamp, roomEnemies, combat){
+    // return one of the 4 directions or "adjacent" if already there
+    let routeTowardsPlayer = function(enemyX,enemyY,playerX,playerY){
+        return "adjacent";
+    }
+    let takeCombatAction = function(enemy){
+        let enemyInfo = enemyFileData[enemy.fileDataIndex];
+
+        let chosenIndex = Math.floor(Math.random()*enemyInfo.aiInfo.pool.length);
+        let action = enemyInfo.actions[enemyInfo.aiInfo.pool[chosenIndex]];
+
+        combat.currentEnemyAction = {
+            actionInfo: action,
+            startTime: timeStamp,
+        };
+        combat.enemyActionEffectApplied = false;
+    }
+    if(combat !== null){
+        takeCombatAction(combat.enemy);
+        combat.turnCount++;
+    } else {
+        for(let i=0;i<roomEnemies.length;i++){
+            let enemy = roomEnemies[i];
+            let step = routeTowardsPlayer();
+            if(step === "adjacent"){
+                // initialize combat. we dont use a seperate funciton for this yet.
+                combat = {
+                    enemy: enemy,
+                    currentEnemyAction: null,
+                    currentPlayerAction: null,
+                    enemyActionEffectApplied: false,
+                    playerActionEffectApplied: false,
+                    turnCount: 0,
+                    status: "ongoing",
+                }
+                takeCombatAction(roomEnemies[i],i);
+                globalWorldData.gameClockOfLastPause = globalWorldData.currentGameClock;
+                combat.turnCount++;
+            }
+        }
+    }
+    return combat;
+}
+
+function updateEquippedAbilities(playerAbilityData,playerCombatData,slotIndex,abilityIndex){
+    // 1 if equipping the ability, -1 if unequipping
+    let unequipModifier = 1;
+    if(abilityIndex === null){
+        unequipModifier = -1;
+        playerAbilityData.equippedAbilities[slotIndex] = null;
+    } else {
+        // Check if the ability is already equipped
+        for(let j=0;j<playerAbilityData.equippedAbilities.length;j++){
+            if(j !== slotIndex && playerAbilityData.equippedAbilities[j] === abilityIndex){
+                playerAbilityData.equippedAbilities[slotIndex] = abilityIndex;
+                playerAbilityData.equippedAbilities[j] = null;
+                return;
+            }
+        }
+        playerAbilityData.equippedAbilities[slotIndex] = abilityIndex;
+    }
+
+    // Effect code here
+}
+
 function addIngameLogLine(lineText,h,s,l,durationMultiplier,timeStamp){
     ingameLog.push(
         {
@@ -1772,51 +1913,11 @@ function Game(){
         }
     
         // Some local fuctions that will be useful for the update phase
-    
-        // Return a dysymbolia cinematic object which stores state about how it will play out and its current state
-        let newDysymboliaCinematic = function(phase, trials, dysymboliaInfo, startTime = timeStamp, trialedKanjiIndexes = [], specialTrials = 0){
-            if(dysymboliaInfo.length > 4){
-                trialedKanjiIndexes.push(dysymboliaInfo[4]);
-            }
-            return {
-                type: "dysymbolia",
-                startTime: startTime,
-                phaseStartTime: timeStamp,
-                // Phase 0 is the introduction phase where the text line is shown but no input has started yet.
-                // Phase 1 starts with the z key and the player is to input their answer
-                // Phase 2 is when the answer is inputted and an animation shows the answer.
-                // Phase 3 is when the story of the last trial or the whole text line is to be checked before going on to the next trial,
-                //or ending when z is pressed. Skipped when the player gets the kanji right and indicates to go straight to the next trial
-                // The cinematic ends when the z key is pressed during phase 3
-                phaseNum: phase,
-    
-                // Subject to refactoring but currently:
-                // info[0] is the kanji symbol
-                // info[1] is an array of corrrect answers that can be given
-                // info[2] is the color of the kanji when it is appropiate to color it
-                // info[3] is the entire word of the dysymbolia in the dialogue sentence
-                info: dysymboliaInfo,
-                particleSystem: particleSystems[particleSystems.length-1],
-                trialsLeft: trials,
-                specialTrialsLeft: specialTrials,
-                //trialedKanji: trialedKanji,
-                // Indexes are their index in the player kanjidata array
-                trialedKanjiIndexes: trialedKanjiIndexes,
-    
-                // True when the animation finishes
-                animationFinished: false,
-                finished: false,
-                result: null,
-    
-                // Will apply effects after the animation is finished when this is still false
-                tooltipsRegistered: false,
-            };
-        }
-    
-        // Changes the area (level) in adventure mode
+
+        // Changes the area (level)
         // Takes the Iid of the area to be changed to because thats what the level neighbours are identified by
         // Or level name works too
-        function changeArea(iid,connectionId = null){
+        function changeArea(playerWorldData,iid,connectionId = null){
             let initializeArea = function(){
                 let lev = levels[globalWorldData.levelNum];
                 roomEnemies = [];
@@ -1838,7 +1939,7 @@ function Game(){
                         let enemy = lev.entities[i];
                         let enemyInfo = enemyFileData[enemy.fileDataIndex];
                         enemy.hp = enemy.maxHp = enemyInfo.hp;
-    
+
                         roomEnemies.push(enemy);
                     }
                 }
@@ -1856,84 +1957,7 @@ function Game(){
             }
             throw "changeArea: New area not found: " + iid;
         }
-    
-        // Get the kanji with the highest study priority and return its playerKanjiData entry
-        let getNextKanji = function(noNewKanji = false, special = false){
-            let currentDate = new Date();
-            let highestPriorityIndex = 0;
-            if(!special){
-                let priority = assignStudyPriority(srsData,playerKanjiData[0],currentDate,noNewKanji);
-                let highestPriority = priority;
-    
-                for(let i=1;i<playerKanjiData.length;i++){
-                    priority = assignStudyPriority(srsData,playerKanjiData[i],currentDate,noNewKanji);
-                    if(priority>highestPriority){
-                        highestPriority = priority;
-                        highestPriorityIndex = i;
-                    }
-                }
-            } else {
-                let specialKanji = abilityFileData[playerAbilityData.acquiringAbility].specialKanji;
-                let priority = assignStudyPriority(srsData,playerKanjiData[specialKanji[0]],currentDate,false);
-                let highestPriority = priority;
-                highestPriorityIndex = specialKanji[0];
-    
-                for(let i=1;i<specialKanji.length;i++){
-                    priority = assignStudyPriority(srsData,playerKanjiData[specialKanji[i]],currentDate,false);
-                    if(priority>highestPriority){
-                        highestPriority = priority;
-                        highestPriorityIndex = specialKanji[i];
-                    }
-                }
-            }
-    
-            return playerKanjiData[highestPriorityIndex];
-        }
-    
-        // All enemies in the room get a chance to make one action
-        let takeEnemyActions = function(){
-            // return one of the 4 directions or "adjacent" if already there
-            let routeTowardsPlayer = function(enemyX,enemyY,playerX,playerY){
-                return "adjacent";
-            }
-            let takeCombatAction = function(enemy){
-                let enemyInfo = enemyFileData[enemy.fileDataIndex];
-    
-                let chosenIndex = Math.floor(Math.random()*enemyInfo.aiInfo.pool.length);
-                let action = enemyInfo.actions[enemyInfo.aiInfo.pool[chosenIndex]];
-    
-                combat.currentEnemyAction = {
-                    actionInfo: action,
-                    startTime: timeStamp,
-                };
-                combat.enemyActionEffectApplied = false;
-            }
-            if(combat !== null){
-                takeCombatAction(combat.enemy);
-                combat.turnCount++;
-            } else {
-                for(let i=0;i<roomEnemies.length;i++){
-                    let enemy = roomEnemies[i];
-                    let step = routeTowardsPlayer();
-                    if(step === "adjacent"){
-                        // initialize combat. we dont use a seperate funciton for this yet.
-                        combat = {
-                            enemy: enemy,
-                            currentEnemyAction: null,
-                            currentPlayerAction: null,
-                            enemyActionEffectApplied: false,
-                            playerActionEffectApplied: false,
-                            turnCount: 0,
-                            status: "ongoing",
-                        }
-                        takeCombatAction(roomEnemies[i],i);
-                        globalWorldData.gameClockOfLastPause = globalWorldData.currentGameClock;
-                        combat.turnCount++;
-                    }
-                }
-            }
-        }
-    
+
         let applyUpkeepEffects = function(){
             let newConditions = [];
             let isUpdateNecessary = false;
@@ -1970,7 +1994,7 @@ function Game(){
     
             let damage = Math.min(2,enemy.hp);
             enemy.hp -= damage;
-    
+            globalPlayerStatisticData.totalDamageDealt+=damage;
             addIngameLogLine(`Mari stomped the lizard dealing ${damage} damage!`,0,100,100,1.5,timeStamp);
     
             if(enemy.hp<=0){
@@ -2099,12 +2123,12 @@ function Game(){
                        timeUntilDysymbolia = -1;
                         let kanjiPlayerInfo = null;
                         if(dialogue.cinematic.specialTrialsLeft>0){
-                            kanjiPlayerInfo = getNextKanji(true);
+                            kanjiPlayerInfo = getNextKanji(playerKanjiData,srsData,true);
                         } else {
-                            kanjiPlayerInfo = getNextKanji();
+                            kanjiPlayerInfo = getNextKanji(playerKanjiData,srsData);
                         }
                         let kanjiFileInfo = adventureKanjiFileData[kanjiPlayerInfo.index];
-                        dialogue.cinematic = newDysymboliaCinematic(1,dialogue.cinematic.trialsLeft,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index],dialogue.cinematic.startTime,dialogue.cinematic.trialedKanjiIndexes,dialogue.cinematic.specialTrialsLeft);
+                        dialogue.cinematic = newDysymboliaCinematic(timeStamp,1,dialogue.cinematic.trialsLeft,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index],dialogue.cinematic.startTime,dialogue.cinematic.trialedKanjiIndexes,dialogue.cinematic.specialTrialsLeft);
     
                         dialogue.textLines[dialogue.currentLine] = dialogue.textLines[dialogue.currentLine] + " " + kanjiFileInfo.symbol + "...";
                         globalInputData.inputtingText = true;
@@ -2129,9 +2153,9 @@ function Game(){
                     particleSystems.push(createParticleSystem(specialParticleSystem));
 
                     timeUntilDysymbolia = -1;
-                    let kanjiPlayerInfo = getNextKanji(false,true);
+                    let kanjiPlayerInfo = getNextKanji(playerKanjiData,srsData,false,playerAbilityData.acquiringAbility);
                     let kanjiFileInfo = adventureKanjiFileData[kanjiPlayerInfo.index];
-                    dialogue.cinematic = newDysymboliaCinematic(1,dialogue.cinematic.trialsLeft,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index],dialogue.cinematic.startTime,dialogue.cinematic.trialedKanjiIndexes,dialogue.cinematic.specialTrialsLeft);
+                    dialogue.cinematic = newDysymboliaCinematic(timeStamp,1,dialogue.cinematic.trialsLeft,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index],dialogue.cinematic.startTime,dialogue.cinematic.trialedKanjiIndexes,dialogue.cinematic.specialTrialsLeft);
 
                     dialogue.textLines[dialogue.currentLine] = dialogue.textLines[dialogue.currentLine] + " " + kanjiFileInfo.symbol + "...";
                     globalInputData.inputtingText = true;
@@ -2198,7 +2222,7 @@ function Game(){
                     }
                 }
     
-                if(dialogue.textLines.length <= dialogue.currentLine+1){
+                if(advanceToNextLine && dialogue.textLines.length <= dialogue.currentLine+1){
                     // Finish dialogue if no more line
                     dialogue = endDialogue(timeStamp);
                 } else {
@@ -2206,7 +2230,7 @@ function Game(){
                     dialogue.lineStartTime = timeStamp;
     
                     if(dialogue.lineInfo[dialogue.currentLine].takeEnemyTurn !== undefined){
-                        takeEnemyActions();
+                        combat = takeEnemyActions(timeStamp, roomEnemies, combat);
                         dialogue = endDialogue(timeStamp);
                         return;
                     }
@@ -2226,7 +2250,7 @@ function Game(){
                         addIngameLogLine("Mari took a fruit from the tree.",130,100,70,2,timeStamp);
                     }
                     if(dialogue.lineInfo[dialogue.currentLine].areaChange !== undefined){
-                        changeArea(dialogue.lineInfo[dialogue.currentLine].areaChange,dialogue.lineInfo[dialogue.currentLine].connectionId);
+                        changeArea(playerWorldData,dialogue.lineInfo[dialogue.currentLine].areaChange,dialogue.lineInfo[dialogue.currentLine].connectionId);
                     }
                     let lineInfo = dialogue.lineInfo[dialogue.currentLine];
     
@@ -2254,7 +2278,7 @@ function Game(){
                         particleSystems.push(createParticleSystem(specialParticleSystem));
                         timeUntilDysymbolia = -1;
     
-                        dialogue.cinematic = newDysymboliaCinematic(0,1,lineInfo.dysymbolia);
+                        dialogue.cinematic = newDysymboliaCinematic(timeStamp,0,1,lineInfo.dysymbolia);
     
                     } else if (lineInfo !== undefined && lineInfo.randomDysymbolia !== undefined){
                         let specialParticleSystem = dialogue.lineInfo[dialogue.currentLine].particleSystem;
@@ -2263,9 +2287,9 @@ function Game(){
                         particleSystems.push(createParticleSystem(specialParticleSystem));
     
                         timeUntilDysymbolia = -1;
-                        let kanjiPlayerInfo = getNextKanji();
+                        let kanjiPlayerInfo = getNextKanji(playerKanjiData,srsData);
                         let kanjiFileInfo = adventureKanjiFileData[kanjiPlayerInfo.index];
-                        dialogue.cinematic = newDysymboliaCinematic(0,5,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index]);
+                        dialogue.cinematic = newDysymboliaCinematic(timeStamp,0,5,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index]);
     
                         dialogue.textLines[dialogue.currentLine] = kanjiFileInfo.symbol + "...";
                     } else if (lineInfo !== undefined && lineInfo.abilityAcquisition !== undefined){
@@ -2277,9 +2301,9 @@ function Game(){
                         particleSystems.push(createParticleSystem(specialParticleSystem));
     
                         timeUntilDysymbolia = -1;
-                        let kanjiPlayerInfo = getNextKanji();
+                        let kanjiPlayerInfo = getNextKanji(playerKanjiData,srsData);
                         let kanjiFileInfo = adventureKanjiFileData[kanjiPlayerInfo.index];
-                        dialogue.cinematic = newDysymboliaCinematic(0,lineInfo.normalTrials,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index],timeStamp,[],lineInfo.specialTrials);
+                        dialogue.cinematic = newDysymboliaCinematic(timeStamp,0,lineInfo.normalTrials,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index],timeStamp,[],lineInfo.specialTrials);
     
                         dialogue.textLines[dialogue.currentLine] = kanjiFileInfo.symbol + "...";
                     }
@@ -2471,7 +2495,7 @@ function Game(){
                         } else if (collision === "bounds"){
                             for(const n of levels[globalWorldData.levelNum].neighbours){
                                 if(n.dir === "s"){
-                                    changeArea(n.levelIid);
+                                    changeArea(playerWorldData,n.levelIid);
                                     playerWorldData.location[1]=-32;
                                     break;
                                 }
@@ -2486,7 +2510,7 @@ function Game(){
                         } else if (collision === "bounds"){
                             for(const n of levels[globalWorldData.levelNum].neighbours){
                                 if(n.dir === "w"){
-                                    changeArea(n.levelIid);
+                                    changeArea(playerWorldData,n.levelIid);
                                     playerWorldData.location[0]=18*32;
                                     break;
                                 }
@@ -2501,7 +2525,7 @@ function Game(){
                         } else if (collision === "bounds"){
                             for(const n of levels[globalWorldData.levelNum].neighbours){
                                 if(n.dir === "e"){
-                                    changeArea(n.levelIid);
+                                    changeArea(playerWorldData,n.levelIid);
                                     playerWorldData.location[0]=-32;
                                     break;
                                 }
@@ -2516,7 +2540,7 @@ function Game(){
                         } else if (collision === "bounds"){
                             for(const n of levels[globalWorldData.levelNum].neighbours){
                                 if(n.dir === "n"){
-                                    changeArea(n.levelIid);
+                                    changeArea(playerWorldData,n.levelIid);
                                     playerWorldData.location[1]=18*32;
                                     break;
                                 }
@@ -2557,7 +2581,7 @@ function Game(){
                         combat = null;
                     } else {
                         combat.currentPlayerAction = null;
-                        takeEnemyActions();
+                        combat = takeEnemyActions(timeStamp, roomEnemies, combat);
                     }
                 } else if(timeElapsed > 600 && !combat.playerActionEffectApplied){
                     applyPlayerActionEffect();
@@ -2601,7 +2625,7 @@ function Game(){
                                 dialogue = initializeDialogue("scenes","tutorial dungeon scene",timeStamp);
                             } else {
                                 if(!combat || !combat.currentEnemyAction){
-                                    changeArea(entity.areaDestination,entity.connectionId);
+                                    changeArea(playerWorldData,entity.areaDestination,entity.connectionId);
                                 }
                             }
                         } else if(entity.type === "character"){
@@ -3546,9 +3570,8 @@ function Game(){
                             // item[1] is the y coordinate to fill the text at
                             context.fillText(item[0], globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, item[1]);
                         });
+                        currentY += wrappedText.length*18+15;
                     }
-    
-                    currentY += wrappedText.length*18+15;
     
                     // unlock rewards
                     context.font = '17px zenMaruMedium';
@@ -3692,8 +3715,9 @@ function Game(){
                                 // item[1] is the y coordinate to fill the text at
                                 context.fillText(item[0], globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, item[1]);
                             });
+                            currentY += wrappedText.length*18+5;
                         }
-                        currentY += 25+wrappedText.length*18;
+                        currentY += 25;
                         if(playerAbilityInfo.unlocked){
                             context.font = '19px zenMaruMedium';
                             context.fillStyle = "#d600ba";
@@ -4216,7 +4240,7 @@ function Game(){
                             if (globalInputData.mouseX >= box.x && globalInputData.mouseX <= box.x + box.width && globalInputData.mouseY >= box.y && globalInputData.mouseY <= box.y + box.height) {
                                 if(playerAbilityData.equippedAbilities[i] !== null){
                                     draggingObject = [box.x,box.y,globalInputData.mouseX,globalInputData.mouseY,playerAbilityData.equippedAbilities[i]];
-                                    playerAbilityData.equippedAbilities[i] = null;
+                                    updateEquippedAbilities(playerAbilityData,playerCombatData,i,null)
                                 }
                                 break;
                             }
@@ -4235,12 +4259,7 @@ function Game(){
                             height: 45
                         };
                         if (globalInputData.mouseX >= box.x && globalInputData.mouseX <= box.x + box.width && globalInputData.mouseY >= box.y && globalInputData.mouseY <= box.y + box.height) {
-                            playerAbilityData.equippedAbilities[i] = draggingObject[4];
-                            for(let j=0;j<playerAbilityData.equippedAbilities.length;j++){
-                                if(j !== i && playerAbilityData.equippedAbilities[j] === draggingObject[4]){
-                                    playerAbilityData.equippedAbilities[j] = null;
-                                }
-                            }
+                            updateEquippedAbilities(playerAbilityData,playerCombatData,i,draggingObject[4])
                             break;
                         }
                     }

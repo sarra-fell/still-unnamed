@@ -480,7 +480,49 @@
                 "lineInfo": [
                     {
                         "face": "player",
-                        "faceNum": 13
+                        "faceNum": 2
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 14,
+                        "abilityAcquisition": true,
+                        "normalTrials": 5,
+                        "specialTrials": 1,
+                        "particleSystem": {
+                            "hue": [0], "saturation": [30], "lightness": [80],
+                            "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 4, "particleLifespan": 1400, "particleSpeed": 20
+                        },
+                        "specialParticleSystem": {
+                            "hue": [280], "saturation": [100], "lightness": [70],
+                            "particlesPerSec": 30, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 5, "particleLifespan": 700, "particleSpeed": 40
+                        }
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 9,
+                        "playerResponses": ["Yes","No"],
+                        "selectedResponse": 0,
+                        "responseEffects": ["jump to 1","end"]
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 1
+                    }
+                ]
+            },
+            "Body Strengthen": {
+                "textLines": [
+                    "That green snake is really dangerous. What if I strengthened my body to be able to stomp it a lot harder? Worth a try.",
+                    "",
+                    "Ugh, I didn't quite get it this time. Should I try again?",
+                    "Not bad."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 2
                     },
                     {
                         "face": "player",
@@ -504,11 +546,53 @@
                         "faceNum": 9,
                         "playerResponses": ["Yes","No"],
                         "selectedResponse": 0,
-                        "responseEffects": ["jump to 2","end"]
+                        "responseEffects": ["jump to 1","end"]
                     },
                     {
                         "face": "player",
-                        "faceNum": 13
+                        "faceNum": 12
+                    }
+                ]
+            },
+            "Limit Break": {
+                "textLines": [
+                    "This entire time I'm needing to deal with a limit on how much power I can store... I think I might be able to deal with that.",
+                    "",
+                    "Ugh, I didn't quite get it this time. Should I try again?",
+                    "There we go! I should be able to learn a lot of new things now."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 2
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 14,
+                        "abilityAcquisition": true,
+                        "normalTrials": 4,
+                        "specialTrials": 2,
+                        "particleSystem": {
+                            "hue": [0], "saturation": [30], "lightness": [80],
+                            "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 4, "particleLifespan": 1400, "particleSpeed": 20
+                        },
+                        "specialParticleSystem": {
+                            "hue": [280], "saturation": [100], "lightness": [70],
+                            "particlesPerSec": 30, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 5, "particleLifespan": 700, "particleSpeed": 40
+                        }
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 9,
+                        "playerResponses": ["Yes","No"],
+                        "selectedResponse": 0,
+                        "responseEffects": ["jump to 1","end"]
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 1
                     }
                 ]
             }
@@ -734,6 +818,26 @@
             "symbol": "仕",
             "keyword": "Serve",
             "story": "A person (left) serving a knight (right)."
+        },
+        {
+            "symbol": "寸",
+            "keyword": "Measurement",
+            "story": "Use two lines (X axis and Y axis) to measure the dot (on the graph)."
+        },
+        {
+            "symbol": "銀",
+            "keyword": "Silver",
+            "story": "Like gold, silver is a metal."
+        },
+        {
+            "symbol": "突",
+            "keyword": "Stab",
+            "story": "When you stab something you often leave a big (bottom) hole (top)."
+        },
+        {
+            "symbol": "体",
+            "keyword": "Body",
+            "story": "Body is the origin of a human, just like a book is the origin of knowledge."
         }
     ],
     "theory": [
@@ -854,6 +958,8 @@
         },
         {
             "name": "Suppress Dysymbolia",
+            "jpName": "ディシンボリア封じ",
+            "jpNameWithSeperators": "ディシンボリア+封じ",
             "description": " Equipping this removes the dysymbolia condition, reduces your max HP by 10%, and disables all dysymbolia abilities, until it is unequipped.",
             "types": ["passive"],
             "passive effects": [
@@ -883,10 +989,13 @@
             ],
             "acquisitionPower": 5,
             "maxLevel": 1,
-            "specialKanji": []
+            "specialKanji": ["寸"],
+            "specialKanji2": ["蛙","封"]
         },
         {
             "name": "Body Strengthen",
+            "jpName": "身体強化",
+            "jpNameWithSeperators": "身体+強化",
             "description": " Channel your power towards strengthening your physical abilities. \n \n When equipped, increases your max hp by 10% and your basic attack strength by 50% per level. Also, just having it acquired increases your base attack damage by 1 per level.",
             "types": ["passive", "static"],
             "passive effects": [
@@ -919,18 +1028,27 @@
                 {
                     "type": "statistic threshold",
                     "stat": "totalDamageTaken",
-                    "number": 25,
+                    "number": 15,
                     "progress": 0,
-                    "textDescription": "Take 25 total damage."
+                    "textDescription": "Take 15 total damage."
+                },
+                {
+                    "type": "statistic threshold",
+                    "stat": "totalDamageDealt",
+                    "number": 2,
+                    "progress": 0,
+                    "textDescription": "Deal 2 total damage."
                 }
             ],
             "maxLevel": 4,
             "acquisitionPower": 5,
-            "specialKanji": ["木","本","体"],
+            "specialKanji": ["本","体"],
             "levelingInfo": {}
         },
         {
-            "name": "Increase Max Power",
+            "name": "Limit Break",
+            "jpName":"限界突破",
+            "jpNameWithSeperators":"限界+突破",
             "description": " Channel your dysymbolia power in on itself and use it to increase your maximum dysymbolia power.",
             "types": ["static"],
             "static effects": [
@@ -959,7 +1077,7 @@
             ],
             "maxLevel": 20,
             "acquisitionPower": 5,
-            "specialKanji": [],
+            "specialKanji": ["穴","突"],
             "levelingInfo": {}
         },
         {
@@ -977,7 +1095,7 @@
             "listRequirements": [
                 {
                     "type": "acquired ability",
-                    "ability": "Increase Max Power",
+                    "ability": "Limit Break",
                     "number": 1
                 }
             ],
@@ -1001,7 +1119,7 @@
             "listRequirements": [
                 {
                     "type": "acquired ability",
-                    "ability": "Increase Max Power",
+                    "ability": "Limit Break",
                     "number": 1
                 }
             ],

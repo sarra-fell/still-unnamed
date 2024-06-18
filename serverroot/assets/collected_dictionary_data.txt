@@ -7,4 +7,9 @@
 制御+せいぎょ(1) -  1. control (of a machine, device, etc.) 2. control (over an opponent, one's emotions, etc.); governing; management; suppression; keeping in check
 好き+すき(2) -  1. liking; being fond of; to one's liking; to one's taste; preferred; favourite 2. liking (romantically); being in love with; beloved 3. faddism; eccentricity 4. as one likes; as it suits one 5. lecherous; lustful; salacious
 緑+みどり(1) -  1. green 2. greenery; verdure
-トカゲ+no data
+蜥蜴+とかげ(0) -  1. lizard 2. skink lizard (Scincidae spp.)
+限界突破+no data
+封じ+no data
+封じる+ふうじる(0) -  1. to seal (letter) 2. to prevent; to forbid; to block
+身体+からだ(0) -  1. body 2. torso; trunk 3. build; physique; frame; figure 4. health; constitution 5. corpse; dead body
+強化+きょうか(1) -  1. strengthening; intensifying; reinforcement; enhancement; solidification

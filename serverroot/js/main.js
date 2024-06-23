@@ -15,6 +15,7 @@ var globalWorldData = {
     worldX: 80,
     worldY: 20,
     speedMode: false,
+    chatting: false,
 
     // Counts the minutes elapsed from 0:00 in the day, for now it goes up 1 every second
     currentGameClock: 600,
@@ -60,7 +61,7 @@ var globalInputData = {
     downPressed: false, upPressed: false, leftPressed: false, rightPressed: false,
 
     // variables set to be true by input event listeners and set back to false after being handled by scene update
-    downClicked: false, upClicked: false, zClicked: false, xClicked: false, doubleClicked: false,
+    downClicked: false, upClicked: false, zClicked: false, xClicked: false, cClicked: false, doubleClicked: false,
 
     // for player movement. handled by the input layer
     currentDirection: "Down",
@@ -471,26 +472,28 @@ let loveButton = {
 
 window.addEventListener('keydown',function(e) {
     switch (e.key) {
-       case 'ArrowLeft': globalInputData.leftPressed=true; if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Left"; break;
-       case 'ArrowUp': globalInputData.upPressed=true; globalInputData.upClicked=true; if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Up"; break;
-       case 'ArrowRight': globalInputData.rightPressed=true; if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Right"; break;
-       case 'ArrowDown': globalInputData.downPressed=true; globalInputData.downClicked=true; if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Down"; break;
-       case 'Enter': globalInputData.finishedInputtingText=true; break;
-       case 'X': globalInputData.xClicked=true;
-       case 'x': globalInputData.xClicked=true;
-       case 'Z': globalInputData.zClicked=true;
-       case 'z': globalInputData.zClicked=true;
-       default: if(!globalInputData.finishedInputtingText){
-           switch (e.key) {
-              case 'Backspace': if(globalInputData.textEntered.length>0){
-                globalInputData.textEntered = globalInputData.textEntered.substring(0,globalInputData.textEntered.length-1);
-              } break;
-              default: if(e.key.length===1){
-                globalInputData.textEntered = globalInputData.textEntered+e.key;
-              }
-          }
-       } break;
+       case 'ArrowLeft': globalInputData.leftPressed=true; if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Left"; return;
+       case 'ArrowUp': globalInputData.upPressed=true; globalInputData.upClicked=true; if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Up"; return;
+       case 'ArrowRight': globalInputData.rightPressed=true; if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Right"; return;
+       case 'ArrowDown': globalInputData.downPressed=true; globalInputData.downClicked=true; if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Down"; return;
+       case 'Enter': globalInputData.finishedInputtingText=true; return;
+       case 'X': 
+       case 'x': globalInputData.xClicked=true; break;
+       case 'Z': 
+       case 'z': globalInputData.zClicked=true; break;
+       case 'C': 
+       case 'c': globalInputData.cClicked=true; break;
    }
+   if(!globalInputData.finishedInputtingText){
+        switch (e.key) {
+        case 'Backspace': if(globalInputData.textEntered.length>0){
+            globalInputData.textEntered = globalInputData.textEntered.substring(0,globalInputData.textEntered.length-1);
+        } break;
+        default: if(e.key.length===1){
+            globalInputData.textEntered = globalInputData.textEntered+e.key;
+        }
+    }
+    } 
 },false);
 
 function reassignCurrentDirection(){
@@ -1018,6 +1021,8 @@ function initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityDat
             trialSuccesses: 0,
             trialFailures: 0,
 
+            successStreak: 0,
+
             customStory: null,
             customKeyword: null,
 
@@ -1029,19 +1034,13 @@ function initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityDat
 
             /**** Internal SRS Variables ****/
 
+            srsCategory: 0, // 0 is new, 1 is reinforcing, 2 is reviewing
             // stores data that changes in structure depending on its srs category (new, reinforcing, reviewing)
             // new category stores no further data
-            // 
-            srsCategoryInfo: {
-                name: "new",
-            },
-
-            // This will get calculated whenever the game is saved and used to find kanji to trial for the first time in later sessions
-            daysUntilNextScheduledTrial: 0,
-
-            // If not null, indicates how long the interval between the last review and the next review this session should be, in seconds
-            // Used to find kanji to trial for the second or later time in the session
-            reviewStage: null,
+            // reinforcing category stores: 
+            // reviewMultiplier, multiplier on the length of time between reviews based on past performance
+            // currentInterval, indicates how long the interval between the last review and the next review this session should be, in seconds.
+            srsCategoryInfo: {},
 
             // After a trial, this will go up or down based on the circumstances, and if it gets too high from too many trial failures, the kanji will be identified as leech
             leechScore: 0,
@@ -1066,6 +1065,8 @@ function initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityDat
     for(let i=0;i<abilityFileData.length;i++){
         playerAbilityData.acquiredAbilities[abilityFileData[i].name] = false;
     }
+
+    playerKanjiData.newKanji.reverse();
 }
 
 function saveToLocalStorage(slot){
@@ -1078,63 +1079,88 @@ function saveToLocalStorage(slot){
     }
 }
 
-// Sorts the kanji category arrays by priority in descending order and updates srs info
-function updateSrsCategoryData(playerKanjiData,currentDate){
-    // New doesn't get a sort phase right now so two phases: sorting reinforcingKanji and updating reviewingKanji
-
-}
-
-// Takes a kanji from the player's kanjiData and assigns a number indicating the priority of the next trial of it.
-// This is where the srs lives
-function assignStudyPriority(playerKanjiData, kanji, currentDate, noNewKanji = false){
+let reinforcingKanjiScoring = function(kanji, trialsThisSession, currentDate){
     // Time passed in seconds since the last trial
-    let timePassed = Infinity;
-    if(kanji.trialHistory.length>0){
-        timePassed = Math.abs(kanji.trialHistory[kanji.trialHistory.length-1].dateStamp - currentDate)/1000;
-    } else {
-        if(noNewKanji){
-            return -1000000;
-        }
-    }
+    let timePassed = Math.abs(kanji.trialHistory[kanji.trialHistory.length-1].dateStamp - currentDate)/1000;
 
     // Number of trials of other kanji since the last trial of this kanji
     let trialsSinceLastTrial = null;
     if(kanji.lastTrialNum !== null){
-        trialsSinceLastTrial = playerKanjiData.trialsThisSession - (kanji.lastTrialNum+1);
+        trialsSinceLastTrial = trialsThisSession - (kanji.lastTrialNum+1);
     }
 
-    if(kanji.reviewStage !== null){
-        // Each trial since the last trial counts for 25 seconds of extra time passed, in seconds
-        let weightedTimePassed = timePassed + trialsSinceLastTrial*25;
+    // Each trial since the last trial counts for 25 seconds of extra time passed, in seconds
+    let weightedTimePassed = timePassed + trialsSinceLastTrial*25;
+    let ratio = weightedTimePassed/(kanji.srsCategoryInfo.currentInterval);
 
-        let ratio = weightedTimePassed/(kanji.reviewStage);
-
-        // Algorithm is subject to change
-        return Math.log(ratio*100)*100 + Math.max(ratio-0.75,0)*3000;
-
-    } else if (kanji.daysUntilNextScheduledTrial>0){
-        return (-kanji.index/10)*kanji.daysUntilNextScheduledTrial;
-    } else {
-        return (playerKanjiData.trialsSinceLastNewKanji+1)*400 - kanji.index/10 - kanji.trialHistory.length*100;
-    }
+    // Algorithm is subject to change
+    return Math.log(ratio*100)*30 + Math.min(Math.max(ratio-0.75,0),0.25)*4000;
 }
 
-// Evaluate the relative need to do reviews vs reinforcement vs new kanji. Will bias toward doing what has more priority while trying to maintain balance.
 let evaluateSrsCategoryPriority = function(playerKanjiData){
-    return {
-        // In the future this could depend on a combination of settings and amount of unknown kanji present in the current dungeon
-        newPriority: 20,
-
-        // In this future this could depend on settings
-        reinforcementPriority: playerKanjiData.reinforcingKanji.length,
-
-        reviewPriority: playerKanjiData.reviewsDue,
+    let reinforcingPriority = 0;
+    
+    if(reinforcingPriority !== 0){
+        reinforcingPriority += 10;
     }
+    // new, reinforcement, review
+    return [
+        10, // In the future this could depend on a combination of settings and amount of unknown kanji present in the current dungeon
+        reinforcingPriority, // In this future this could depend on settings
+        Math.log((playerKanjiData.reviewsDue*10)+1) + playerKanjiData.reviewsDue/20, // In this future this could depend on settings
+    ];
 }
 
-// Get the kanji with the highest study priority and return its playerKanjiData entry
 let getNextKanji = function(playerKanjiData, noNewKanji = false, acquiringAbility = null){
     let currentDate = new Date();
+
+    // the priorities of the categories
+    // new kanji vs reinforcement vs reviews. Will bias toward doing what has more priority while trying to maintain balance.
+    let priorities = [(!noNewKanji)*10,0,Math.log((playerKanjiData.reviewsDue*10)+1) + playerKanjiData.reviewsDue/20];
+
+    // Evaluate the priority for reinforcement while getting the highest priority kanji
+    let highestPriorityReinforcingKanji;
+    {
+        let highestScore = -Infinity;
+        for(let i=0;i<playerKanjiData.reinforcingKanji.length;i++){
+            let score = reinforcingKanjiScoring(playerKanjiData.reinforcingKanji[i], playerKanjiData.trialsThisSession, currentDate);
+            if(score > highestScore){
+                highestScore = score;
+                highestPriorityReinforcingKanji = playerKanjiData.reinforcingKanji[i];
+            }
+            if(score > 1000){
+                priorities[1]++;
+            }
+        }
+        if(priorities[1] !== 0){
+            priorities[1]+=10;
+        }
+    }
+
+    let weights = [1,1,1];
+    for(let i=playerKanjiData.recentTrialCategories.length-1;i>=0;i--){
+        weights[playerKanjiData.recentTrialCategories[i]] += i;
+    }
+    let normallizeNumberTuple = function(tuple){
+        let max = Math.max(...tuple);
+        for(let i=0;i<tuple.length;i++){
+            tuple[i] = tuple[i]/max;
+        }
+    }
+    normallizeNumberTuple(priorities); normallizeNumberTuple(weights); 
+    let deltas = [priorities[0] - weights[0], priorities[1] - weights[1], priorities[2] - weights[2]];
+    if(deltas[0] > deltas[1] && deltas[0] > deltas[2]){
+        // Get a new kanji next!
+        return playerKanjiData.newKanji[playerKanjiData.newKanji.length-1];
+    } else if(deltas[1] > deltas[2]){
+        // Get the highest priority reinforcing kanji next!
+        return highestPriorityReinforcingKanji;
+    } else {
+        // Get a reviewing kanji 
+        return playerKanjiData.reviewingKanji[playerKanjiData.reviewingKanji.length-1];
+    }
+    
+    /*
     let highestPriorityIndex = 0;
     if(acquiringAbility === null){
         let priority = assignStudyPriority(playerKanjiData,playerKanjiData.kanjiList[0],currentDate,noNewKanji);
@@ -1162,7 +1188,7 @@ let getNextKanji = function(playerKanjiData, noNewKanji = false, acquiringAbilit
         }
     }
 
-    return playerKanjiData.kanjiList[highestPriorityIndex];
+    return playerKanjiData.kanjiList[highestPriorityIndex];*/
 }
 
 // after completing a trial, this function adds the trial to the kanji and updates all the information of it, if needed
@@ -1174,41 +1200,80 @@ function addTrial(playerKanjiData, kanji, succeeded){
         success: succeeded,
     });
 
+    if(playerKanjiData.recentTrialCategories.length===10){
+        // Move all elements down 1 and add the new trial
+        for(let i=8;i>=0;i--){
+            playerKanjiData.recentTrialCategories[i] = playerKanjiData.recentTrialCategories[i+1];
+        }
+        playerKanjiData.recentTrialCategories[9] = kanji.srsCategory;
+    } else {
+        playerKanjiData.recentTrialCategories.push(kanji.srsCategory);
+    }
+
     kanji.lastTrialNum = playerKanjiData.trialsThisSession;
     playerKanjiData.trialsThisSession++;
-    if(kanji.masteryStage === 0){
-        playerKanjiData.trialsSinceLastNewKanji = 0;
-    } else {
-        playerKanjiData.trialsSinceLastNewKanji++;
-    }
 
     if(succeeded && kanji.daysUntilMasteryIncreaseOpportunity === 0){
         kanji.masteryStage++;
-        kanji.highestMasteryStage = Math.max(kanji.masteryStage,kanji.highestMasteryStage);
+        //kanji.highestMasteryStage = Math.max(kanji.masteryStage,kanji.highestMasteryStage);
         kanji.daysUntilMasteryIncreaseOpportunity = masteryStageIntervals[kanji.masteryStage];
         globalPlayerStatisticData.totalKanjiMastery++;
     }
     if(succeeded){
         kanji.trialSuccesses++;
-        if(kanji.reviewStage !== null){
-            kanji.reviewStage = kanji.reviewStage*4*kanji.masteryStage;
-        } else {
-            kanji.reviewStage = 60*60*4;
-            kanji.daysUntilNextScheduledTrial = kanji.daysUntilMasteryIncreaseOpportunity;
+        kanji.successStreak++;
+        kanji.leechScore = Math.max(0,kanji.leechScore-7*kanji.successStreak)
+        if(kanji.srsCategory === 2){
+            // no
+        } else if(kanji.srsCategory === 0){
+            kanji.srsCategory = 1;
+            playerKanjiData.reinforcingKanji.push(kanji);
+            playerKanjiData.newKanji.pop();
+
+            kanji.srsCategoryInfo = {
+                // no one better keep playing the game for 72 hours lol
+                currentInterval: 60*60*72,
+                reviewMultiplier: 3,
+            }
+        } else if(kanji.srsCategory === 1){
+            kanji.srsCategoryInfo.currentInterval = kanji.srsCategoryInfo.currentInterval*4*kanji.srsCategoryInfo.reviewMultiplier;
         }
+        
     } else {
         kanji.trialFailures++;
-        if(kanji.reviewStage !== null){
-            kanji.reviewStage = kanji.reviewStage*0.75;
-        } else {
-            // Starts at 20 seconds
-            kanji.reviewStage = 20;
+        kanji.successStreak = 0;
+        if(kanji.srsCategory === 2){
+            kanji.srsCategory = 1;
+            playerKanjiData.reinforcingKanji.push(kanji);
+            playerKanjiData.reviewingKanji.pop();
+
+            kanji.srsCategoryInfo = {
+                currentInterval: 20,
+                reviewMultiplier: 1 + 0.5*kanji.masteryStage,
+            }
+        } else if(kanji.srsCategory === 0){
+            kanji.srsCategory = 1;
+            playerKanjiData.reinforcingKanji.push(kanji);
+            playerKanjiData.newKanji.pop();
+
+            kanji.srsCategoryInfo = {
+                currentInterval: 20,
+                reviewMultiplier: 1,
+            }
+        } else if(kanji.srsCategory === 1){
+            kanji.srsCategoryInfo.currentInterval = kanji.srsCategoryInfo.currentInterval*(1/3);
+            kanji.leechScore += 30;
+            if(kanji.leechScore >= 96){
+                kanji.leechDetectionTriggered = true;
+                globalPlayerStatisticData.totalLeechDetectionTriggers++;
+                kanji.enabled = false;
+            }
         }
     }
 }
 
 // Evaluate conditions for listing abilities, unlocking abilities, listing theory pages, or unlocking theory pages.
-let evaluateUnlockRequirements = function(playerAbilityData, requirements){
+let evaluateUnlockRequirements = function(playerAbilityData, playerTheoryData, requirements){
     let unlocked = true;
     for(let i=0;i<requirements.length;i++){
         let r = requirements[i];
@@ -1220,7 +1285,13 @@ let evaluateUnlockRequirements = function(playerAbilityData, requirements){
         } else if(r.type === "acquired ability"){
             if(playerAbilityData.acquiredAbilities[r.ability]){
                 r.progress = 1;
-                unlocked = true;
+            } else {
+                r.progress = 0;
+                unlocked = false;
+            }
+        } else if(r.type === "unlocked writeup"){
+            if(playerTheoryData[r.writeup].unlocked){
+                r.progress = 1;
             } else {
                 r.progress = 0;
                 unlocked = false;
@@ -1340,8 +1411,8 @@ function updatePlayerAbilityList(playerAbilityData){
     for(let i=0;i<abilityFileData.length;i++){
         let a = abilityFileData[i];
 
-        if(evaluateUnlockRequirements(playerAbilityData, a.listRequirements)){
-            let unlocked = evaluateUnlockRequirements(playerAbilityData, a.unlockRequirements);
+        if(evaluateUnlockRequirements(playerAbilityData, {}, a.listRequirements)){
+            let unlocked = evaluateUnlockRequirements(playerAbilityData, {}, a.unlockRequirements);
             newAbilityList.push({
                 name: a.name,
                 jpName: a.jpName,
@@ -1382,6 +1453,9 @@ function useItem(playerInventoryData,playerCombatData,playerConditions,inventory
             globalWorldData.speedMode = false;
         }
         playerCombatData.power++;
+        var input = document.createElement("input");
+        input.setAttribute("type", "text");
+        document.getElementById("textboxContainer").appendChild(input);
     } else {
         for(const eff of info.effectList){
             if(eff === "heal"){
@@ -1623,10 +1697,10 @@ function drawItemIcon(itemId,x,y){
 
     if(info.imageInfo[0] === "tile"){
         drawTile(info.imageInfo[1],info.imageInfo[2],x-(info.imageInfo[3]-1)*16 + info.imageInfo[3]*2 + 4,y-(info.imageInfo[3]-1)*16 + info.imageInfo[3]*2 + 4,32,info.imageInfo[3]);
-    } else if(info.imageInfo[0] === "gun"){
-        let gun = miscImages.gun;
-        let ratio = gun.height/gun.width;
-        context.drawImage(miscImages.gun,x+6,y+(45-(32*ratio))/2,32,32*ratio);
+    } else {
+        let image = miscImages[info.imageInfo[0]];
+        let ratio = image.height/image.width;
+        context.drawImage(image,x+6,y+(45-(32*ratio))/2,32,32*ratio);
     }
 }
 
@@ -1852,7 +1926,7 @@ function Game(){
     let playerInventoryData = {
         maxInventorySpace: 20,
         currencyOne: 0, currencyTwo: 0,
-        inventory: [2,"none","none","none","none", // First 5 items are the hotbar
+        inventory: ["none","none","none",1,"none", // First 5 items are the hotbar
                     "none","none","none","none","none",
                     "none","none","none","none","none",
                     "none","none","none","none","none"
@@ -1884,20 +1958,25 @@ function Game(){
     };
 
     let playerKanjiData = {
-        // Main array containing the kanji the player has access to and all of their data in relation to the player
+        // Main array containing the kanji the player has access to and all of their data in relation to the player. This list is stored in the safe file
         kanjiList: [],
 
-        trialsSinceLastNewKanji: 0,
+        // The rest of the data is not stored in the save file and is repopulated/reinitialized on load instead
+
         trialsThisSession: 0,
+
+        // contains max 10 elements with 0,1, or 2, for each category
+        recentTrialCategories: [],
 
         // The below are arrays that share references to the kanji objects in the kanjilist.
 
         // Kanji that just finished introduction or was answered incorrect and needs to be reinforced
         reinforcingKanji: [],
+        reinforcesDue: 0, // Floating point based on an aggregate of urgency
 
         // Kanji that has been sufficiently reinforced/hasnt been brought up in a while
         reviewingKanji: [],
-        reviewsDue: 0,
+        reviewsDue: 0, // Simple integer
 
         // Kanji that hasn't been trialed even once
         newKanji: [],
@@ -2180,7 +2259,7 @@ function Game(){
                        timeUntilDysymbolia = -1;
                         let kanjiPlayerInfo = null;
                         if(dialogue.cinematic.specialTrialsLeft>0){
-                            kanjiPlayerInfo = getNextKanji(playerKanjiDatatrue);
+                            kanjiPlayerInfo = getNextKanji(playerKanjiData,true);
                         } else {
                             kanjiPlayerInfo = getNextKanji(playerKanjiData);
                         }
@@ -2659,9 +2738,22 @@ function Game(){
             if(globalInputData.xClicked){
                 globalInputData.xClicked = false;
             }
+            if(globalInputData.cClicked){
+                if(globalWorldData.chatting){
+
+                } else if(!globalInputData.inputtingText){
+                    globalWorldData.chatting = true;
+                    globalInputData.inputtingText = true;
+                    globalInputData.finishedInputtingText = false;
+                    globalInputData.textEntered = "";
+                }
+                globalInputData.cClicked = false;
+            }
             if(globalInputData.zClicked){
                 // Handle dialogue update on z press
-                if(dialogue !== null){
+                if(globalWorldData.chatting){
+
+                } else if(dialogue !== null){
                     advanceDialogueState();
                 } else if(combat !== null && (combat.currentEnemyAction !== null || combat.currentPlayerAction !== null)){
                     // While an action is undergoing do not allow interaction
@@ -2764,7 +2856,53 @@ function Game(){
                     }
                 }
             }
-    
+            if(globalWorldData.chatting && globalInputData.finishedInputtingText){
+                globalWorldData.chatting = false;
+                globalInputData.inputtingText = false;
+                if(globalInputData.textEntered[0] !== '$'){
+                    addIngameLogLine(`Mari: ${globalInputData.textEntered}`,0,0,100,1,timeStamp);
+                } else {
+                    // do command 
+                    switch (globalInputData.textEntered) {
+                        case '$speed':
+                            if(movingAnimationDuration === 200){
+                                movingAnimationDuration = 40;
+                                globalWorldData.speedMode = true;
+                            } else {
+                                movingAnimationDuration = 200;
+                                globalWorldData.speedMode = false;
+                            }
+                            break;
+                        case '$addpower':
+                            playerCombatData.power++;
+                            break;
+                        case '$timewarp':
+                            // This command saves the game to slot 1 with all the dates shifted 24 hours behind
+                            try {
+                                let twentyfourHours = 24 * 60 * 60 * 1000;
+                                for(let i=0;i<playerKanjiData.kanjiList.length;i++){
+                                    let kanji = playerKanjiData.kanjiList[i];
+                        
+                                    for(let j=0;j<kanji.trialHistory.length;j++){
+                                        kanji.trialHistory[j].dateStamp = kanji.trialHistory[j].dateStamp-twentyfourHours;
+                                    }
+                                }
+                                let save = game.outputSaveGame();
+                                save.date = save.date - twentyfourHours;
+                                localStorage.setItem("save 1",JSON.stringify(save));
+                                alert("successfully saved a timewarped save to save 1, i hope");
+                                break;
+                            }
+                            catch (err) {
+                                alert("timewarp save failed: "+err);
+                            }
+                        default:
+                            addIngameLogLine(`Unknown command`,0,50,50,1,timeStamp);
+                            break;
+                    }
+                }
+                globalInputData.textEntered = "";
+            }
         }; // Update world screen function ends here
     
         const updateMenuScreen = function(){
@@ -2783,7 +2921,7 @@ function Game(){
                     initializeMenuTab();
                 }
             }
-            globalInputData.zClicked = globalInputData.xClicked = false;
+            globalInputData.zClicked = globalInputData.xClicked = globalInputData.cClicked = false;
         };
     
         if(menuScene !== null){
@@ -3334,7 +3472,7 @@ function Game(){
             context.font = '16px zenMaruRegular';
             context.fillStyle = textColor;
             context.textAlign = "left";
-            context.fillText("Press Z to interact/continue dialogue",globalWorldData.worldX+100, globalWorldData.worldY+40+h*globalWorldData.sizeMod);
+            //context.fillText("Press Z to interact/continue dialogue",globalWorldData.worldX+100, globalWorldData.worldY+40+h*globalWorldData.sizeMod);
     
             if(note !== "無"){
                 context.fillStyle = "hsla(61, 100%, 80%, 1)";
@@ -4083,6 +4221,27 @@ function Game(){
                 context.fillText(enemy.hp+"/"+enemy.maxHp, globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 45+context.measureText("HP: ").width, globalWorldData.worldY+360);
             }
         }
+
+        // Draw chat bar 
+        if(globalWorldData.chatting){
+            context.fillStyle = 'hsl(0, 100%, 0%, 70%)';
+            context.save();
+            context.shadowColor = "hsl(0, 15%, 0%, 70%)";
+            context.shadowBlur = 15;
+            context.beginPath();
+            context.roundRect(globalWorldData.worldX, globalWorldData.worldY+(h*globalWorldData.sizeMod)+5*globalWorldData.sizeMod, w*globalWorldData.sizeMod, globalWorldData.sizeMod*30,5);
+            context.fill();
+            context.restore();
+
+            context.font = `${15*globalWorldData.sizeMod}px zenMaruRegular`;
+            context.textAlign = 'left';
+            context.fillStyle = "White";
+            let text = globalInputData.textEntered;
+            if(timeStamp%1500 > 750){
+                text+= "_";
+            }
+            context.fillText(text, globalWorldData.worldX+globalWorldData.sizeMod*10, globalWorldData.worldY+(h*globalWorldData.sizeMod)+25*globalWorldData.sizeMod);
+        }
     }
 
     // Initialize the menu tab, also used to update it sometimes...
@@ -4181,20 +4340,24 @@ function Game(){
                 }
             });
         } else if(menuScene === "Theory"){
-            for(let i=0;i<theoryWriteupData.length;i++){
-                tooltipBoxes.push({
-                    x: globalWorldData.worldX+240,
-                    y: globalWorldData.worldY+140 + 45*i,
-                    spawnTime: 0,
-                    width: 18*TILE_SIZE+1-55, height: 40,
-                    type: "write-up entry", index: i,
-                });
+
+            for(let i=0, listedNum=0;i<theoryWriteupData.length;i++){
                 if(!theoryWriteupData[i].hasOwnProperty("listRequirements")){
                     playerTheoryData[i].listed = true;
                 } else {
-                    playerTheoryData[i].listed = evaluateUnlockRequirements(playerAbilityData, theoryWriteupData[i].listRequirements);
+                    playerTheoryData[i].listed = evaluateUnlockRequirements(playerAbilityData, playerTheoryData, theoryWriteupData[i].listRequirements);
                 }
-                playerTheoryData[i].conditionsMet = evaluateUnlockRequirements(playerAbilityData, theoryWriteupData[i].unlockRequirements);
+                if(playerTheoryData[i].listed){
+                    tooltipBoxes.push({
+                        x: globalWorldData.worldX+240,
+                        y: globalWorldData.worldY+140 + 45*listedNum,
+                        spawnTime: 0,
+                        width: 18*TILE_SIZE+1-55, height: 40,
+                        type: "write-up entry", index: i,
+                    });
+                    listedNum++;
+                }
+                playerTheoryData[i].conditionsMet = evaluateUnlockRequirements(playerAbilityData, playerTheoryData, theoryWriteupData[i].unlockRequirements);
             }
 
             if(menuData.isReadingWriteup){
@@ -4517,7 +4680,7 @@ function Game(){
             alert("successfully loaded i think");
         }
         catch (err) {
-            alert("save failed: "+err);
+            alert("load failed: "+err);
         }
     }
 
@@ -4906,7 +5069,7 @@ Player Src: ${playerWorldData.src}
     dialogue = initializeDialogue("scenes","opening scene",performance.now());
     updateConditionTooltips(playerConditions);
     updateInventory(playerInventoryData);
-    globalInputData.xClicked = globalInputData.zClicked = globalInputData.doubleClicked = false;
+    globalInputData.xClicked = globalInputData.zClicked = globalInputData.cClicked = globalInputData.doubleClicked = false;
 }
 
 
@@ -5001,6 +5164,10 @@ function init(){
     miscImages.gold.src = `/assets/some ui/gold-coins.png`;
     miscImages.gun = new Image();
     miscImages.gun.src = `/assets/Snoopeth's Guns/1px/33.png`
+    miscImages.blueberry = new Image();
+    miscImages.blueberry.src = `/assets/Sprout Lands 32/b_27.png`
+    miscImages.yellowberry = new Image();
+    miscImages.yellowberry.src = `/assets/Sprout Lands 32/y_27.png`
 
     // Get a reference to the canvas
     canvas = document.getElementById('canvas');

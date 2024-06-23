@@ -935,9 +935,9 @@
                 {
                     "type": "statistic threshold",
                     "stat": "totalKanjiMastery",
-                    "number": 20,
+                    "number": 15,
                     "progress": 0,
-                    "textDescription": "Gain 20 total kanji mastery level."
+                    "textDescription": "Gain 15 total kanji mastery level."
                 }
             ],
             "unlockRewards": [
@@ -949,7 +949,11 @@
             ],
             "currentPage": 0,
             "pages": [
-                " Because I said so lol \n \n - Sarracenia"
+                " Because I said so lol. \n \n - Sarracenia",
+                " Okay okay, I'll give you a real answer if you want it that bad. There are a lot of parts to the full answer to this question, because of all the different features in the game which are there to help you learn efficiently. The explainations for some of the smaller scale features will be given in other write-ups you won't unlock until later. But there are two larger concepts you will want to understand first of all. First, why you are learning to be able to give english keywords that denotes the meaning of the kanji (page 3), second, why does the game teach those the way it does (premade mnemonics with a spaced repetition system, page 4).",
+                " The reason why you are learning to be able to produce english meanings in responce to the kanji, instead of producing the kanji in responce to the meaning, or being able to produce the reading of the kanji, is simply that it is the easiest out of those. What is most important is not in fact, the meaning you learned (although it can help), but the fact that you can recognize the kanji at all. If you want to, you can actually type in a reading of the kanji instead of the meaning and that will work too! (Feature pending, but it needs to exist.) This is because if you can't recognize the most common kanji first, learning how to read japanese which can already be difficult at the beginning becomes much more difficult. This game will provide a way to start your first reading practice, but the kanji study comes first! You'll also be able to learn words easier and even be able to skim through japanese text and possibly understand the meanings of words you don't know without even looking up the words in the dicitionary if you want!",
+                " So, how does the game work to teach you the english meanings of kanji? Well, it uses spaced repetition and gives you premade mnemonics, which are stories that connect the strokes of the kanji to the meaning and are designed as scaffolding that has a high chance of being completely forgotten later on but while you are initially learning, will be very useful to you. I could give a long winded explaination of how the visual memory works and how strong it is and whatnot, but I think its easy enough to intuitively understand how useful they can be when you try and use them. My only suggestion with those is that you spend some time to really see the image in your mind and utilize as many senses as you can to produce a vivid image when trying to learn a kanji with these stories, and it will help you remember them signiciantly better than you would just reading them, I guarantee it. \n \n There will be times when the stories don't work out for you. In that case, go ahead and replace the story in the kanji list (feature pending). The stories are compiled to my tastes and based mostly on stories found on Kanji Koohii (look it up!), but I only provide a single story for each kanji because I find that providing multiple stories makes it more likely to confuse them which makes it a lot harder to remember the kanji. Send me feedback if you think a different story would be better to provide as the default for a specfic kanji, I'm open to that kind of thing.",
+                " Good luck and have fun with your learning! \n \n - Sarracenia"
             ]
         },
         {
@@ -983,6 +987,39 @@
             "currentPage": 0,
             "pages": [
                 " I see you've been hard at work studying kanji. Good job. \n \n  What's that? You're a failure? Now now, you don't need to say such things! Not being able to remember is a part of the process, I'm sure you understand. But getting the same kanji wrong over and over can be really frustrating, can't it? That's why I went ahead and disabled a kanji for you for now! That way you can avoid the frustration. You can go to the kanji list and turn it back on whenever you want, or modify or disable this feature in settings if you don't like it. \n \n I don't recommend disabling it though. I didn't just do it just to make you feel better, theres actually very, very good reasons for doing this to further your learning. I'm sure you have noticed that certain kanji just happen to be really easy for you to remember, and some others just won't click, right? It's fun and productive to work on the kanji that is efficient to learn and to continue looking at new kanji, but it's not really fun, productive, or really beneficial in any way to continue to try and brute force your way towards trying to remember something that just won't click as well. That's why what I recommend is to keep kanji disabled that were automatically disabled for a while, then go back and undisable the ones you think you are ready to introduce. You can also use a (unimplemented) setting to automatically have me turn on kanji that was automatically disabled after it has been a while. ",
+                " Be warned though, when a kanji is disabled, it can still appear in some places. You can't get it from regular kanji trials, but special trials, like certain trials in combat or in ability acqusition, can still feature that kanji! I don't want that to stop you from disabiling some kanji as you don't have to have memorized everything before entering those circumstances but still, but it might be difficult if you disable way too many kanji so be warned. \n \n Go ahead and try managing the enabling and disabling of kanji yourself if you think that'll help, or leave it to me if it's bothersome. But either way, good luck on your adventure! \n \n - Sarracenia"
+            ]
+        },
+        {
+            "title": "Creating an effective study schedule.",
+            "description": "Learn about how play sessions work and suggestions for using them.",
+            "rewardText": "5 gems.",
+            "listRequirements": [
+                {
+                    "type": "unlocked writeup",
+                    "writeup": 3,
+                    "number": 1
+                }
+            ],
+            "unlockRequirements": [
+                {
+                    "type": "statistic threshold",
+                    "stat": "highestIndividualMastery",
+                    "number": 2,
+                    "progress": 0,
+                    "textDescription": "Achieve mastery level 2 on any kanji."
+                }
+            ],
+            "unlockRewards": [
+                {
+                    "type": "currency 2",
+                    "number": 5,
+                    "progress": 0
+                }
+            ],
+            "currentPage": 0,
+            "pages": [
+                " Level 2, what an achievement! Well, you've actually just started out to be honest, but its something at least. It means you played this game on two seperate days, or at least I hope so (you might need to adjust the day change time in the settings to match up with when you sleep). It might be about time to learn about where this game fits into your schedule to in order to best learn kanji. \n \n If you are experienced with spaced repetition, you already know this, but the best way to make spaced repetition is to come back every day and do your scheduled reviews on time, since if you miss your scheduled reviews it will disrupt the review schedule the system has planned out and interfere with learning. However! Unlike some other (bad) spaced reepetition systems out there (don't want to name names but they exist...), there are some features in place that stop everything from exploding and being terrible just because you missed a day or two. ",
                 " Be warned though, when a kanji is disabled, it can still appear in some places. You can't get it from regular kanji trials, but special trials, like certain trials in combat or in ability acqusition, can still feature that kanji! I don't want that to stop you from disabiling some kanji as you don't have to have memorized everything before entering those circumstances but still, but it might be difficult if you disable way too many kanji so be warned. \n \n Go ahead and try managing the enabling and disabling of kanji yourself if you think that'll help, or leave it to me if it's bothersome. But either way, good luck on your adventure! \n \n - Sarracenia"
             ]
         }
@@ -1244,6 +1281,34 @@
             "color": "blue",
             "subtypes": ["dev"],
             "imageInfo": ["gun"]
+        },
+        {
+            "name": "Blue Berries",
+            "desc": "Not to be confused with blueberries. Halves the damage of the next hit you take.",
+            "type": "Consumable",
+            "color": "blue",
+            "subtypes": ["food","fruit"],
+            "stack": true,
+            "imageInfo": ["blueberry"],
+            "effectList": ["heal","satiate"],
+            "effects": {
+                "healAmount": 10,
+                "satiation": "small"
+            }
+        },
+        {
+            "name": "Yellow Berries",
+            "desc": "Tastes a little funny but maybe you could get used to it. Decreases the time remaining on all of your negative conditions.",
+            "type": "Consumable",
+            "color": "yellow",
+            "subtypes": ["food","fruit"],
+            "stack": true,
+            "imageInfo": ["yellowberry"],
+            "effectList": ["heal","satiate"],
+            "effects": {
+                "healAmount": 10,
+                "satiation": "small"
+            }
         }
     ],
     "enemies": [

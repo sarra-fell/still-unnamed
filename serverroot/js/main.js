@@ -32,13 +32,11 @@ let timeUntilDysymbolia = 60;
 
 // The player statistic data, designed to be global
 var globalPlayerStatisticData = {
-    finishedWaterScene: false,
-    finishedFruitScene: false,
-    finishedCloudScene: false,
-    finishedDungeonScene: false,
-    finishedNightScene: false,
     finishedFirstRandomDysymboliaScene: false,
-    finishedFivePowerScene: false,
+
+    // key pair for each dialogue in category "scene", contains number of times completed
+    sceneCompletion: {},
+
     totalSceneDysymboliaExperienced: 0,
     stepCount: 0,
     enemiesDefeated: 0,
@@ -48,6 +46,8 @@ var globalPlayerStatisticData = {
     totalDamageTaken: 0,
     totalDamageDealt: 0,
     totalLeechDetectionTriggers: 0,
+    totalFirstTryKanji: 0,
+    highestIndividualMastery: 0,
 }
 
 //var globalMenuTabList = ["Inventory","Abilities","Kanji List","Theory","Settings","Save"];
@@ -75,6 +75,16 @@ var globalInputData = {
     //so that we know whether a button was actually fully clicked or not
     mouseDownX: -1, mouseDownY: -1,
 }
+
+const masteryStageIntervals = [0,1,3,7,21,90,Infinity];
+const masteryStageColors = [
+    [20,40,50],
+    [120,40,50],
+    [205,60,55],
+    [280,60,55],
+    [355,75,55],
+    [60,85,65],
+];
 
 function getTextInputStatus(){
     if(globalInputData.inputtingText && globalInputData.finishedInputtingText){
@@ -119,7 +129,7 @@ var dialogueFileData = {
     randomDysymbolia: {},
 };
 
-var adventureKanjiFileData = [];
+var kanjiFileData = [];
 var theoryWriteupData = [];
 var abilityFileData = [];
 var abilityIcons = [];
@@ -134,7 +144,7 @@ let gameJsonDataLoaded = false;
 function processGameJsonData(data) {
     const gameData = JSON.parse(data);
     const dialogueData = gameData.dialogue;
-    adventureKanjiFileData = gameData.kanji;
+    kanjiFileData = gameData.kanji;
     theoryWriteupData = gameData.theory;
     abilityFileData = gameData.abilities;
     enemyFileData = gameData.enemies;
@@ -159,12 +169,17 @@ function processGameJsonData(data) {
         for(let i=0;i<ability.specialKanji.length;i++){
             let symbol = ability.specialKanji[i];
 
-            for(let j=0;j<adventureKanjiFileData.length;j++){
-                if(symbol === adventureKanjiFileData[j].symbol){
+            for(let j=0;j<kanjiFileData.length;j++){
+                if(symbol === kanjiFileData[j].symbol){
                     ability.specialKanji[i] = j;
                 }
             }
         }
+    }
+
+    // todo: outside schedule
+    for (let scene in dialogueFileData.scenes){
+        globalPlayerStatisticData.sceneCompletion[scene] = 0;
     }
 
     gameJsonDataLoaded = true;
@@ -712,12 +727,12 @@ function drawTooltip() {
     } else if(tooltipBox.type === "kanji list entry"){
         // dont draw shit and the tooltip is just used as a signal that its being hovered over lol
         /*
-        let kanji = adventureKanjiFileData[tooltipBox.index];
+        let kanji = kanjiFileData[tooltipBox.index];
         let text = kanji.story;
         context.font = '20px Arial';
         draw('black',kanji.symbol + "   " + kanji.keyword,text)*/
     } else if (tooltipBox.type === "kanji"){
-        let kanji = adventureKanjiFileData[tooltipBox.index];
+        let kanji = kanjiFileData[tooltipBox.index];
         let text = kanji.story;
         context.font = '20px Arial';
         draw('black',kanji.symbol + "   " + kanji.keyword,text)
@@ -1007,14 +1022,21 @@ function updateParticleSystem(sys,fps,timeStamp){
 
 // Call to initialize the game when no save file is being loaded and the game is to start from the beginning
 function initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityData){
-    for(let i=0;i<adventureKanjiFileData.length;i++){
+    for(let i=0;i<kanjiFileData.length;i++){
 
         let kanji = {
             // Index in the file data
             index: i,
 
-            // Contains the full trial history of the kanji
-            trialHistory: [],
+            // Contains the last time any trial success or failure was submitted with this kanji, srs trials or not
+            lastTrialDate: null,
+
+            // Significant trials are: a trial of a new kanji, a due review trial, any trial that pushes back the review date for whatever reason 
+            // Significant trials are not: reinforcement trials, trials before the review due date
+
+            // Non-srs trials can still be a significant trial, for example if the kanji was due for review and it was a success, it will be treated like a successful review.
+            // (but if it was not successful it will be ignored)
+            lastSignificantTrialDate: null,
 
             enabled: true,
 
@@ -1026,8 +1048,11 @@ function initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityDat
             customStory: null,
             customKeyword: null,
 
-            daysUntilMasteryIncreaseOpportunity: 0,
             masteryStage: 0,
+
+            // used to calulate new review intervals 
+            // (if a new review interval would be smaller than this, it will push it up slightly higher, with a stronger effect the bigger the distance is)
+            highestReviewIntervalAchieved: 0,
 
             // Mastery stage can go down after a long vacation but highest mastery stage will be used to calculate mastery score, maybe?
             //highestMasteryStage: 0,
@@ -1040,11 +1065,17 @@ function initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityDat
             // reinforcing category stores: 
             // reviewMultiplier, multiplier on the length of time between reviews based on past performance
             // currentInterval, indicates how long the interval between the last review and the next review this session should be, in seconds.
+
+            // reviewing category stores:
+            // currentInterval, indicates how long the interval between the last review and the next review this session should be, in days (with a 2 hour leeway)
             srsCategoryInfo: {},
 
             // After a trial, this will go up or down based on the circumstances, and if it gets too high from too many trial failures, the kanji will be identified as leech
             leechScore: 0,
             leechDetectionTriggered: false,
+
+            // If kanji was gotten right on the first trial ever, special mechanics may apply
+            firstTrySuccess: false,
 
             // If not null, indicates the number of the trial where this kanji was studied last this session
             // How many trials gone by since the last trial is a variable used to determine when it gets trialed
@@ -1079,14 +1110,37 @@ function saveToLocalStorage(slot){
     }
 }
 
+// Updates the reviewsDue number and "sorts" the array, not to be called during an active trial or things will be messed up
+function updateReviewsDue(playerKanjiData,currentDate){
+    playerKanjiData.reviewsDue = 0;
+    let dueReviewingKanji = [];
+    let undueReviewingKanji = [];
+    
+    for(let i=0;i<playerKanjiData.reviewingKanji.length;i++){
+        let kanji = playerKanjiData.reviewingKanji[i];
+        let timePassed = currentDate - kanji.lastSignificantTrialDate;
+        let hourInterval = (kanji.srsCategoryInfo.currentInterval * 24)-2;
+        if(timePassed > 1000 * 60 * 60 * hourInterval && kanji.enabled){
+            playerKanjiData.reviewsDue++;
+            dueReviewingKanji.push(kanji);
+        } else {
+            undueReviewingKanji.push(kanji);
+        }
+    }
+    playerKanjiData.reviewingKanji = undueReviewingKanji.concat(dueReviewingKanji);
+}
+
 let reinforcingKanjiScoring = function(kanji, trialsThisSession, currentDate){
     // Time passed in seconds since the last trial
-    let timePassed = Math.abs(kanji.trialHistory[kanji.trialHistory.length-1].dateStamp - currentDate)/1000;
+    let timePassed = Math.abs(kanji.lastTrialDate - currentDate)/1000;
 
     // Number of trials of other kanji since the last trial of this kanji
     let trialsSinceLastTrial = null;
     if(kanji.lastTrialNum !== null){
         trialsSinceLastTrial = trialsThisSession - (kanji.lastTrialNum+1);
+    }
+    if(!kanji.enabled){
+        return -Infinity;
     }
 
     // Each trial since the last trial counts for 25 seconds of extra time passed, in seconds
@@ -1111,12 +1165,12 @@ let evaluateSrsCategoryPriority = function(playerKanjiData){
     ];
 }
 
-let getNextKanji = function(playerKanjiData, noNewKanji = false, acquiringAbility = null){
+let getNextKanji = function(playerKanjiData, noNewKanji = false){
     let currentDate = new Date();
 
     // the priorities of the categories
     // new kanji vs reinforcement vs reviews. Will bias toward doing what has more priority while trying to maintain balance.
-    let priorities = [(!noNewKanji)*10,0,Math.log((playerKanjiData.reviewsDue*10)+1) + playerKanjiData.reviewsDue/20];
+    let priorities = [(!noNewKanji)*10,0, playerKanjiData.reviewsDue/2];
 
     // Evaluate the priority for reinforcement while getting the highest priority kanji
     let highestPriorityReinforcingKanji;
@@ -1130,11 +1184,16 @@ let getNextKanji = function(playerKanjiData, noNewKanji = false, acquiringAbilit
             }
             if(score > 1000){
                 priorities[1]++;
+                priorities[0]-=2;
             }
         }
-        if(priorities[1] !== 0){
-            priorities[1]+=10;
-        }
+    }
+
+    if(priorities[1] !== 0){
+        priorities[1]+=10;
+    }
+    if(priorities[2] !== 0){
+        priorities[2]+=20;
     }
 
     let weights = [1,1,1];
@@ -1151,6 +1210,11 @@ let getNextKanji = function(playerKanjiData, noNewKanji = false, acquiringAbilit
     let deltas = [priorities[0] - weights[0], priorities[1] - weights[1], priorities[2] - weights[2]];
     if(deltas[0] > deltas[1] && deltas[0] > deltas[2]){
         // Get a new kanji next!
+        let newk = playerKanjiData.newKanji[playerKanjiData.newKanji.length-1];
+        while(!newk.enabled){
+            playerKanjiData.newKanji.pop();
+            newk = playerKanjiData.newKanji[playerKanjiData.newKanji.length-1];
+        }
         return playerKanjiData.newKanji[playerKanjiData.newKanji.length-1];
     } else if(deltas[1] > deltas[2]){
         // Get the highest priority reinforcing kanji next!
@@ -1159,46 +1223,11 @@ let getNextKanji = function(playerKanjiData, noNewKanji = false, acquiringAbilit
         // Get a reviewing kanji 
         return playerKanjiData.reviewingKanji[playerKanjiData.reviewingKanji.length-1];
     }
-    
-    /*
-    let highestPriorityIndex = 0;
-    if(acquiringAbility === null){
-        let priority = assignStudyPriority(playerKanjiData,playerKanjiData.kanjiList[0],currentDate,noNewKanji);
-        let highestPriority = priority;
-
-        for(let i=1;i<playerKanjiData.length;i++){
-            priority = assignStudyPriority(playerKanjiData,playerKanjiData.kanjiList[i],currentDate,noNewKanji);
-            if(priority>highestPriority){
-                highestPriority = priority;
-                highestPriorityIndex = i;
-            }
-        }
-    } else {
-        let specialKanji = abilityFileData[acquiringAbility].specialKanji;
-        let priority = assignStudyPriority(playerKanjiData,playerKanjiData.kanjiList[specialKanji[0]],currentDate,false);
-        let highestPriority = priority;
-        highestPriorityIndex = specialKanji[0];
-
-        for(let i=1;i<specialKanji.length;i++){
-            priority = assignStudyPriority(playerKanjiData,playerKanjiData.kanjiList[specialKanji[i]],currentDate,false);
-            if(priority>highestPriority){
-                highestPriority = priority;
-                highestPriorityIndex = specialKanji[i];
-            }
-        }
-    }
-
-    return playerKanjiData.kanjiList[highestPriorityIndex];*/
 }
 
 // after completing a trial, this function adds the trial to the kanji and updates all the information of it, if needed
 function addTrial(playerKanjiData, kanji, succeeded){
-    const masteryStageIntervals = [0,1,3,7,21,90,Infinity];
-
-    kanji.trialHistory.push({
-        dateStamp: new Date(),
-        success: succeeded,
-    });
+    let currentDate = new Date();
 
     if(playerKanjiData.recentTrialCategories.length===10){
         // Move all elements down 1 and add the new trial
@@ -1212,29 +1241,41 @@ function addTrial(playerKanjiData, kanji, succeeded){
 
     kanji.lastTrialNum = playerKanjiData.trialsThisSession;
     playerKanjiData.trialsThisSession++;
+    kanji.lastTrialDate = currentDate;
 
-    if(succeeded && kanji.daysUntilMasteryIncreaseOpportunity === 0){
+    let increaseMastery = function(){
         kanji.masteryStage++;
-        //kanji.highestMasteryStage = Math.max(kanji.masteryStage,kanji.highestMasteryStage);
-        kanji.daysUntilMasteryIncreaseOpportunity = masteryStageIntervals[kanji.masteryStage];
         globalPlayerStatisticData.totalKanjiMastery++;
+        globalPlayerStatisticData.highestIndividualMastery = Math.max(kanji.masteryStage,globalPlayerStatisticData.highestIndividualMastery);
     }
+
     if(succeeded){
+        if(kanji.masteryStage === 0){
+            increaseMastery();
+        }
         kanji.trialSuccesses++;
         kanji.successStreak++;
         kanji.leechScore = Math.max(0,kanji.leechScore-7*kanji.successStreak)
         if(kanji.srsCategory === 2){
-            // no
-        } else if(kanji.srsCategory === 0){
-            kanji.srsCategory = 1;
-            playerKanjiData.reinforcingKanji.push(kanji);
-            playerKanjiData.newKanji.pop();
-
-            kanji.srsCategoryInfo = {
-                // no one better keep playing the game for 72 hours lol
-                currentInterval: 60*60*72,
-                reviewMultiplier: 3,
+            kanji.lastSignificantTrialDate = currentDate;
+            if(kanji.srsCategoryInfo.currentInterval >= masteryStageIntervals[kanji.masteryStage]){
+                increaseMastery();
             }
+            kanji.srsCategoryInfo.currentInterval*=3;
+            if(kanji.srsCategoryInfo.currentInterval<kanji.highestReviewIntervalAchieved){
+                let difference = kanji.highestReviewIntervalAchieved - kanji.srsCategoryInfo.currentInterval;
+                kanji.srsCategoryInfo.currentInterval+= difference/10;
+            } else {
+                kanji.highestReviewIntervalAchieved = kanji.srsCategoryInfo.currentInterval;
+            }
+        } else if(kanji.srsCategory === 0){
+            // New kanji succeeded on first try
+            kanji.lastSignificantTrialDate = kanji.lastTrialDate;
+            kanji.srsCategory = 3;
+            kanji.firstTrySuccess = true;
+
+            playerKanjiData.newKanji.pop();
+            globalPlayerStatisticData.totalFirstTryKanji++;
         } else if(kanji.srsCategory === 1){
             kanji.srsCategoryInfo.currentInterval = kanji.srsCategoryInfo.currentInterval*4*kanji.srsCategoryInfo.reviewMultiplier;
         }
@@ -1244,6 +1285,7 @@ function addTrial(playerKanjiData, kanji, succeeded){
         kanji.successStreak = 0;
         if(kanji.srsCategory === 2){
             kanji.srsCategory = 1;
+            kanji.lastSignificantTrialDate = kanji.lastTrialDate;
             playerKanjiData.reinforcingKanji.push(kanji);
             playerKanjiData.reviewingKanji.pop();
 
@@ -1253,6 +1295,7 @@ function addTrial(playerKanjiData, kanji, succeeded){
             }
         } else if(kanji.srsCategory === 0){
             kanji.srsCategory = 1;
+            kanji.lastSignificantTrialDate = kanji.lastTrialDate;
             playerKanjiData.reinforcingKanji.push(kanji);
             playerKanjiData.newKanji.pop();
 
@@ -1265,11 +1308,14 @@ function addTrial(playerKanjiData, kanji, succeeded){
             kanji.leechScore += 30;
             if(kanji.leechScore >= 96){
                 kanji.leechDetectionTriggered = true;
+                kanji.leechScore = 0;
                 globalPlayerStatisticData.totalLeechDetectionTriggers++;
                 kanji.enabled = false;
+                addIngameLogLine(`Leech detection triggered for kanji `+kanjiFileData[kanji.index].symbol,0,0,100,1,performance.now());
             }
         }
     }
+    updateReviewsDue(playerKanjiData,currentDate);
 }
 
 // Evaluate conditions for listing abilities, unlocking abilities, listing theory pages, or unlocking theory pages.
@@ -1482,6 +1528,9 @@ function useItem(playerInventoryData,playerCombatData,playerConditions,inventory
 function initializeDialogue(category, scenario, timeStamp, entityIndex = null){
     globalWorldData.gameClockOfLastPause = globalWorldData.currentGameClock;
     globalInputData.currentDirectionFrozen = true;
+    if(category === "scenes"){
+        globalPlayerStatisticData.sceneCompletion[scenario]++;
+    }
     return {
         startTime: timeStamp,
         lineStartTime: timeStamp,
@@ -1831,7 +1880,7 @@ let takeEnemyActions = function(timeStamp, roomEnemies, combat){
                     playerActionEffectApplied: false,
                     turnCount: 0,
                     status: "ongoing",
-                }
+                };
                 takeCombatAction(roomEnemies[i],i);
                 globalWorldData.gameClockOfLastPause = globalWorldData.currentGameClock;
                 combat.turnCount++;
@@ -1926,7 +1975,7 @@ function Game(){
     let playerInventoryData = {
         maxInventorySpace: 20,
         currencyOne: 0, currencyTwo: 0,
-        inventory: ["none","none","none",1,"none", // First 5 items are the hotbar
+        inventory: ["none","none","none","none","none", // First 5 items are the hotbar
                     "none","none","none","none","none",
                     "none","none","none","none","none",
                     "none","none","none","none","none"
@@ -1972,7 +2021,7 @@ function Game(){
 
         // Kanji that just finished introduction or was answered incorrect and needs to be reinforced
         reinforcingKanji: [],
-        reinforcesDue: 0, // Floating point based on an aggregate of urgency
+        reinforcesDue: 0, // Floating point based on an aggregate of urgency (currently unused)
 
         // Kanji that has been sufficiently reinforced/hasnt been brought up in a while
         reviewingKanji: [],
@@ -2010,6 +2059,9 @@ function Game(){
         selectedKanji: 0,
         selectedWriteup: 0,
         isReadingWriteup: false,
+
+        // array to change the equipped abilities to after menu is closed
+        //newEquippedAbilities: [null,null,null,null,null,null,null,null,null,null],
     }
 
     let dialogue = null;
@@ -2138,6 +2190,7 @@ function Game(){
                 enemy.ephemeral = true;
                 enemy.visible = false;
                 combat.status = "enemy defeated";
+                globalPlayerStatisticData.enemiesDefeated++;
             }
     
             applyUpkeepEffects();
@@ -2251,10 +2304,7 @@ function Game(){
 
                     // If there are regular trials left, start a regular trial at phase 1
                     if(dialogue.cinematic.trialsLeft > 0){
-                        let specialParticleSystem = dialogue.lineInfo[dialogue.currentLine].particleSystem;
-                        specialParticleSystem.specialDrawLocation = true;
-    
-                        particleSystems.push(createParticleSystem(specialParticleSystem));
+                        
     
                        timeUntilDysymbolia = -1;
                         let kanjiPlayerInfo = null;
@@ -2263,7 +2313,31 @@ function Game(){
                         } else {
                             kanjiPlayerInfo = getNextKanji(playerKanjiData);
                         }
-                        let kanjiFileInfo = adventureKanjiFileData[kanjiPlayerInfo.index];
+                        let kanjiFileInfo = kanjiFileData[kanjiPlayerInfo.index];
+                        let specialParticleSystem = {
+                            hue: [0], saturation: [30], lightness: [80],
+                            particlesPerSec: 15, drawParticles: 0, newParticle: 1,
+                            particleSize: 4, particleLifespan: 1400, particleSpeed: 20,
+                            specialDrawLocation: true,
+                        };
+                        
+                        if(kanjiPlayerInfo.srsCategory===0){
+                            specialParticleSystem.hue = [185,300]; 
+                            specialParticleSystem.saturation = [80,80];
+                            specialParticleSystem.lightness = [75,75];
+                            specialParticleSystem.particleLifespan = 1900;
+                            specialParticleSystem.particleSize = 3;
+                            specialParticleSystem.particlesPerSec = 30;
+                        } else if(kanjiPlayerInfo.srsCategory===2){
+                            let masteryHsla = masteryStageColors[kanjiPlayerInfo.masteryStage];
+                            specialParticleSystem.hue = masteryHsla[0]; 
+                            specialParticleSystem.saturation = masteryHsla[1];
+                            specialParticleSystem.lightness = masteryHsla[2];
+                            specialParticleSystem.particleLifespan = 1900;
+                            specialParticleSystem.particleSize = 5;
+                            specialParticleSystem.particlesPerSec = 12;
+                        }
+                        particleSystems.push(createParticleSystem(specialParticleSystem));
                         dialogue.cinematic = newDysymboliaCinematic(timeStamp,1,dialogue.cinematic.trialsLeft,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index],dialogue.cinematic.startTime,dialogue.cinematic.trialedKanjiIndexes,dialogue.cinematic.specialTrialsLeft);
     
                         dialogue.textLines[dialogue.currentLine] = dialogue.textLines[dialogue.currentLine] + " " + kanjiFileInfo.symbol + "...";
@@ -2289,8 +2363,12 @@ function Game(){
                     particleSystems.push(createParticleSystem(specialParticleSystem));
 
                     timeUntilDysymbolia = -1;
-                    let kanjiPlayerInfo = getNextKanji(playerKanjiData,false,playerAbilityData.acquiringAbility);
-                    let kanjiFileInfo = adventureKanjiFileData[kanjiPlayerInfo.index];
+                    
+                    // im sorry future me but too bad
+                    let specialKanjiIndex = abilityFileData[playerAbilityData.acquiringAbility].specialKanji.length - dialogue.cinematic.specialTrialsLeft;
+
+                    let kanjiPlayerInfo = playerKanjiData.kanjiList[abilityFileData[playerAbilityData.acquiringAbility].specialKanji[specialKanjiIndex]];
+                    let kanjiFileInfo = kanjiFileData[kanjiPlayerInfo.index];
                     dialogue.cinematic = newDysymboliaCinematic(timeStamp,1,dialogue.cinematic.trialsLeft,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index],dialogue.cinematic.startTime,dialogue.cinematic.trialedKanjiIndexes,dialogue.cinematic.specialTrialsLeft);
 
                     dialogue.textLines[dialogue.currentLine] = dialogue.textLines[dialogue.currentLine] + " " + kanjiFileInfo.symbol + "...";
@@ -2422,14 +2500,37 @@ function Game(){
                         dialogue.cinematic = newDysymboliaCinematic(timeStamp,0,1,lineInfo.dysymbolia);
     
                     } else if (lineInfo !== undefined && lineInfo.randomDysymbolia !== undefined){
-                        let specialParticleSystem = dialogue.lineInfo[dialogue.currentLine].particleSystem;
-                        specialParticleSystem.specialDrawLocation = true;
-    
-                        particleSystems.push(createParticleSystem(specialParticleSystem));
+                        
     
                         timeUntilDysymbolia = -1;
                         let kanjiPlayerInfo = getNextKanji(playerKanjiData);
-                        let kanjiFileInfo = adventureKanjiFileData[kanjiPlayerInfo.index];
+                        let kanjiFileInfo = kanjiFileData[kanjiPlayerInfo.index];
+
+                        let specialParticleSystem = {
+                            hue: [0], saturation: [30], lightness: [80],
+                            particlesPerSec: 15, drawParticles: 0, newParticle: 1,
+                            particleSize: 4, particleLifespan: 1400, particleSpeed: 20,
+                            specialDrawLocation: true,
+                        };
+                        
+                        if(kanjiPlayerInfo.srsCategory===0){
+                            specialParticleSystem.hue = [185,300]; 
+                            specialParticleSystem.saturation = [80,80];
+                            specialParticleSystem.lightness = [75,75];
+                            specialParticleSystem.particleLifespan = 1900;
+                            specialParticleSystem.particleSize = 3;
+                            specialParticleSystem.particlesPerSec = 30;
+                        } else if(kanjiPlayerInfo.srsCategory===2){
+                            let masteryHsla = masteryStageColors[kanjiPlayerInfo.masteryStage];
+                            specialParticleSystem.hue = masteryHsla[0]; 
+                            specialParticleSystem.saturation = masteryHsla[1];
+                            specialParticleSystem.lightness = masteryHsla[2];
+                            specialParticleSystem.particleLifespan = 1900;
+                            specialParticleSystem.particleSize = 5;
+                            specialParticleSystem.particlesPerSec = 12;
+                        }
+                        specialParticleSystem.specialDrawLocation = true;
+                        particleSystems.push(createParticleSystem(specialParticleSystem));
                         dialogue.cinematic = newDysymboliaCinematic(timeStamp,0,5,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index]);
     
                         dialogue.textLines[dialogue.currentLine] = kanjiFileInfo.symbol + "...";
@@ -2443,7 +2544,7 @@ function Game(){
     
                         timeUntilDysymbolia = -1;
                         let kanjiPlayerInfo = getNextKanji(playerKanjiData);
-                        let kanjiFileInfo = adventureKanjiFileData[kanjiPlayerInfo.index];
+                        let kanjiFileInfo = kanjiFileData[kanjiPlayerInfo.index];
                         dialogue.cinematic = newDysymboliaCinematic(timeStamp,0,lineInfo.normalTrials,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index],timeStamp,[],lineInfo.specialTrials);
     
                         dialogue.textLines[dialogue.currentLine] = kanjiFileInfo.symbol + "...";
@@ -2494,9 +2595,6 @@ function Game(){
                     user.graphicLocation[0] = (user.location[0]+receiver.location[0]*factor)/(1+factor);
                     user.graphicLocation[1] = (user.location[1]+receiver.location[1]*factor)/(1+factor);
                 } else if(timeElapsed<600){
-                    if(!combat.enemyActionEffectApplied){
-                        applyEnemyActionEffect();
-                    }
                     let midfactor = 1/5;
                     let midpoint = [(user.location[0]+receiver.location[0]*midfactor)/(1+midfactor),(user.location[1]+receiver.location[1]*midfactor)/(1+midfactor)];
                     let newfactor = (timeElapsed-200)/(300*1.5);
@@ -2597,8 +2695,8 @@ function Game(){
                             }
                         } else {
                             // TODO: make taking damage a function that checks death and stuff lol
-                            playerCombatData.hp -= 3;
-                            globalPlayerStatisticData.totalDamageTaken += 3;
+                            playerCombatData.hp -= 1;
+                            globalPlayerStatisticData.totalDamageTaken += 1;
                             activeDamage = {
                                 // If startFrame is positive, there is currently active damage.
                                 startFrame: timeStamp,
@@ -2629,7 +2727,7 @@ function Game(){
     
                     if(globalInputData.currentDirection === "Down" && globalInputData.downPressed){
                         let collision = isCollidingOnTile(playerWorldData.location[0],playerWorldData.location[1],"Down");
-                        if(collision===null){
+                        if(collision===null || collision === 14){
                             playerWorldData.location[1]+=32;
                             initializeAnimation("basic movement",playerWorldData,globalInputData.currentDirection);
                             globalPlayerStatisticData.stepCount++;
@@ -2644,7 +2742,7 @@ function Game(){
                         }
                     } else if(globalInputData.currentDirection === "Left" && globalInputData.leftPressed){
                         let collision = isCollidingOnTile(playerWorldData.location[0],playerWorldData.location[1],"Left");
-                        if(collision===null){
+                        if(collision===null || collision === 13){
                             playerWorldData.location[0]-=32;
                             initializeAnimation("basic movement",playerWorldData,globalInputData.currentDirection);
                             globalPlayerStatisticData.stepCount++;
@@ -2659,7 +2757,7 @@ function Game(){
                         }
                     } else if(globalInputData.currentDirection === "Right" && globalInputData.rightPressed){
                         let collision = isCollidingOnTile(playerWorldData.location[0],playerWorldData.location[1],"Right");
-                        if(collision===null){
+                        if(collision===null || collision === 12){
                             playerWorldData.location[0]+=32;
                             initializeAnimation("basic movement",playerWorldData,globalInputData.currentDirection);
                             globalPlayerStatisticData.stepCount++;
@@ -2674,7 +2772,7 @@ function Game(){
                         }
                     } else if(globalInputData.currentDirection === "Up" && globalInputData.upPressed){
                         let collision = isCollidingOnTile(playerWorldData.location[0],playerWorldData.location[1],"Up");
-                        if(collision===null){
+                        if(collision===null || collision === 15){
                             playerWorldData.location[1]-=32;
                             initializeAnimation("basic movement",playerWorldData,globalInputData.currentDirection);
                             globalPlayerStatisticData.stepCount++;
@@ -2699,9 +2797,8 @@ function Game(){
     
                 if(updateBasicAttackAnimation(enemy,playerWorldData,timeElapsed) === "finished"){
                     combat.currentEnemyAction = null;
-                    if(!globalPlayerStatisticData.finishedDungeonScene){
+                    if(globalPlayerStatisticData.sceneCompletion["tutorial dungeon scene 2"]===0){
                         dialogue = initializeDialogue("scenes","tutorial dungeon scene 2",timeStamp)
-                        globalPlayerStatisticData.finishedDungeonScene=true;
                     }
                 } else if(timeElapsed > 600 && !combat.enemyActionEffectApplied){
                     applyEnemyActionEffect();
@@ -2767,11 +2864,10 @@ function Game(){
                     if(collision !== null && typeof collision === "object"){
                         let entity = lev.entities[collision.index];
                         if(entity.id === "Fruit_Tree" && (entity.hasBottomFruit || entity.hasLeftFruit || entity.hasRightFruit)){
-                            if(globalPlayerStatisticData.finishedFruitScene){
+                            if(globalPlayerStatisticData.sceneCompletion["tutorial fruit scene"]){
                                 dialogue = initializeDialogue("world","fruit_tree",timeStamp,collision.index);
                             } else {
                                 dialogue = initializeDialogue("scenes","tutorial fruit scene",timeStamp,collision.index);
-                                globalPlayerStatisticData.finishedFruitScene = true;
                                 globalPlayerStatisticData.totalSceneDysymboliaExperienced++;
                             }
                         } else if(entity.id === "Berry_Bush"){
@@ -2782,11 +2878,14 @@ function Game(){
                             }
 
                         } else if (entity.id === "Stairs") {
-                            if(entity.connectionId === "first" && !globalPlayerStatisticData.finishedDungeonScene){
+                            if(entity.connectionId === "first" && globalPlayerStatisticData.sceneCompletion["tutorial dungeon scene"]===0){
                                 dialogue = initializeDialogue("scenes","tutorial dungeon scene",timeStamp);
                             } else {
                                 if(!combat || !combat.currentEnemyAction){
                                     changeArea(playerWorldData,entity.areaDestination,entity.connectionId);
+                                    if(globalPlayerStatisticData.enemiesDefeated === 0 && levels[globalWorldData.levelNum].identifier === "Floating_Island_Dungeon_0" && globalPlayerStatisticData.sceneCompletion["tutorial dungeon scene 3"]===0){
+                                        dialogue = initializeDialogue("scenes","tutorial dungeon scene 3",timeStamp);
+                                    }
                                 }
                             }
                         } else if(entity.type === "character"){
@@ -2801,27 +2900,41 @@ function Game(){
                             }
                             dialogue = initializeDialogue(entity.id.toLowerCase(),"initial",timeStamp,collision.index);
                         } else if(entity.type === "enemy") {
-                            combat.currentPlayerAction = {
-                                actionInfo: "basic attack",
-                                startTime: timeStamp,
-                                enemyEntityIndex: collision.index,
-                            };
-                            combat.playerActionEffectApplied = false;
+                            if(combat !== null){
+                                combat.currentPlayerAction = {
+                                    actionInfo: "basic attack",
+                                    startTime: timeStamp,
+                                    enemyEntityIndex: collision.index,
+                                };
+                                combat.playerActionEffectApplied = false;
+                            } else {
+                                combat = {
+                                    enemy: entity,
+                                    currentEnemyAction: null,
+                                    currentPlayerAction: {
+                                        actionInfo: "basic attack",
+                                        startTime: timeStamp,
+                                        enemyEntityIndex: collision.index,
+                                    },
+                                    enemyActionEffectApplied: false,
+                                    playerActionEffectApplied: false,
+                                    turnCount: 0,
+                                    status: "ongoing",
+                                };
+                            }
                         }
                     } else if(collision === 1){
-                        if(globalPlayerStatisticData.finishedWaterScene){
+                        if(globalPlayerStatisticData.sceneCompletion["tutorial water scene"]>0){
                             dialogue = initializeDialogue("world","water",timeStamp);
                         } else {
                             dialogue = initializeDialogue("scenes","tutorial water scene",timeStamp);
-                            globalPlayerStatisticData.finishedWaterScene = true;
                             globalPlayerStatisticData.totalSceneDysymboliaExperienced++;
                         }
                     } else if(collision === 7){
-                        if(globalPlayerStatisticData.finishedCloudScene){
+                        if(globalPlayerStatisticData.sceneCompletion["tutorial cloud scene"]>0){
                             dialogue = initializeDialogue("world","clouds",timeStamp);
                         } else {
                             dialogue = initializeDialogue("scenes","tutorial cloud scene",timeStamp);
-                            globalPlayerStatisticData.finishedCloudScene = true;
                             globalPlayerStatisticData.totalSceneDysymboliaExperienced++;
                         }
                     } else if(collision === 8){
@@ -2864,7 +2977,7 @@ function Game(){
                 } else {
                     // do command 
                     switch (globalInputData.textEntered) {
-                        case '$speed':
+                        case '$fast':
                             if(movingAnimationDuration === 200){
                                 movingAnimationDuration = 40;
                                 globalWorldData.speedMode = true;
@@ -2873,8 +2986,12 @@ function Game(){
                                 globalWorldData.speedMode = false;
                             }
                             break;
-                        case '$addpower':
+                        case '$power':
                             playerCombatData.power++;
+                            break;
+                        case '$end':
+                            dialogue = endDialogue(timeStamp);
+                            timeUntilDysymbolia = 60;
                             break;
                         case '$timewarp':
                             // This command saves the game to slot 1 with all the dates shifted 24 hours behind
@@ -2882,9 +2999,11 @@ function Game(){
                                 let twentyfourHours = 24 * 60 * 60 * 1000;
                                 for(let i=0;i<playerKanjiData.kanjiList.length;i++){
                                     let kanji = playerKanjiData.kanjiList[i];
-                        
-                                    for(let j=0;j<kanji.trialHistory.length;j++){
-                                        kanji.trialHistory[j].dateStamp = kanji.trialHistory[j].dateStamp-twentyfourHours;
+                                    if(kanji.lastTrialDate !== null){
+                                        kanji.lastTrialDate = new Date(kanji.lastTrialDate-twentyfourHours);
+                                    }
+                                    if(kanji.lastSignificantTrialDate !== null){
+                                        kanji.lastSignificantTrialDate = new Date(kanji.lastSignificantTrialDate-twentyfourHours);
                                     }
                                 }
                                 let save = game.outputSaveGame();
@@ -2894,7 +3013,7 @@ function Game(){
                                 break;
                             }
                             catch (err) {
-                                alert("timewarp save failed: "+err);
+                                alert("timewarp save entirely or partially failed: "+err);
                             }
                         default:
                             addIngameLogLine(`Unknown command`,0,50,50,1,timeStamp);
@@ -2918,7 +3037,7 @@ function Game(){
             } else if(menuScene === "Abilities"){
                 if(globalInputData.mouseDown && currentTooltip && menuData.selectedAbility !== tooltipBoxes[currentTooltip.index].index && tooltipBoxes[currentTooltip.index].type === "ability menu ability"){
                     menuData.selectedAbility = tooltipBoxes[currentTooltip.index].index;
-                    initializeMenuTab();
+                    //initializeMenuTab();
                 }
             }
             globalInputData.zClicked = globalInputData.xClicked = globalInputData.cClicked = false;
@@ -3230,7 +3349,7 @@ function Game(){
                             // TODO: figure out a way to refactor so this step isnt needed i swear
                             let tooltipTargets = [];
                             for(let i=0;i<dialogue.cinematic.trialedKanjiIndexes.length;i++){
-                                tooltipTargets.push(adventureKanjiFileData[dialogue.cinematic.trialedKanjiIndexes[i]].symbol);
+                                tooltipTargets.push(kanjiFileData[dialogue.cinematic.trialedKanjiIndexes[i]].symbol);
                             }
                             drawDialogueText(dialogue,(96+18)*globalWorldData.sizeMod+globalWorldData.worldX, (globalWorldData.worldY+h*globalWorldData.sizeMod-72*globalWorldData.sizeMod),(w*globalWorldData.sizeMod-124*globalWorldData.sizeMod),20*globalWorldData.sizeMod,timeStamp,
                                 {
@@ -3388,7 +3507,7 @@ function Game(){
                         }
                     } else if(c.phaseNum < 4 && c.info.length > 4) {
                         /*** It is currently phase 3, so display the story associated with the current kanji ***/
-                        let kanjiInfo = adventureKanjiFileData[c.info[4]];
+                        let kanjiInfo = kanjiFileData[c.info[4]];
     
                         // Background box
                         context.fillStyle = 'hsl(0, 0%, 10%, 55%)';
@@ -3545,29 +3664,28 @@ function Game(){
                 context.fillStyle = 'white';
     
                 let rowAmount = 12;
-                for(let i=0;i<Math.ceil(adventureKanjiFileData.length/rowAmount);i++){
-                    for(let j=0; j<Math.min(rowAmount,adventureKanjiFileData.length-i*rowAmount);j++){
+                for(let i=0;i<Math.ceil(kanjiFileData.length/rowAmount);i++){
+                    for(let j=0; j<Math.min(rowAmount,kanjiFileData.length-i*rowAmount);j++){
                         let currentIndex = j + i*rowAmount;
-                        let kanjiInfo = playerKanjiData.kanjiList[currentIndex];
-                        let masteryStageColors = [
-                            'hsla(20, 40%, 50%, 1)',
-                            'hsla(120, 40%, 50%, 1)',
-                            'hsla(280, 40%, 50%, 1)',
-                            'hsla(230, 40%, 50%, 1)',
-                            'hsla(355, 60%, 50%, 1)',
-                            'hsla(60, 75%, 65%, 1)',
-                        ]
+                        let kanjiInfo = playerKanjiData.kanjiList[currentIndex];      
     
                         context.lineWidth = 2;
                         let textFill = 'white';
                         // Change colors based on the kanji info
                         if(menuData.selectedKanji === currentIndex){
-                            context.strokeStyle = 'hsla(60, 100%, 75%, 1)';
+                            context.strokeStyle = 'hsla(60, 100%, 100%, 1)';
+                            context.lineWidth = 4;
                             if(!playerKanjiData.kanjiList[currentIndex].enabled){
                                 textFill = 'hsla(0, 0%, 60%, 1)';
                             }
                         } else if(kanjiInfo.enabled){
-                            context.strokeStyle = masteryStageColors[kanjiInfo.masteryStage];
+                            let masteryHsla = masteryStageColors[kanjiInfo.masteryStage];
+                            context.strokeStyle = `hsla(
+                                ${masteryHsla[0]},
+                                ${masteryHsla[1]}%,
+                                ${masteryHsla[2]}%,
+                                1
+                            )`;
                         } else {
                             context.strokeStyle = 'hsla(0, 0%, 60%, 1)';
                             textFill = 'hsla(0, 0%, 60%, 1)';
@@ -3580,7 +3698,7 @@ function Game(){
                         context.stroke();
     
                         context.fillStyle = textFill;
-                        context.fillText(adventureKanjiFileData[currentIndex].symbol,globalWorldData.worldX+240+45*j + 6,globalWorldData.worldY+140 + 45*i + 30)
+                        context.fillText(kanjiFileData[currentIndex].symbol,globalWorldData.worldX+240+45*j + 6,globalWorldData.worldY+140 + 45*i + 30)
                     }
                 }
     
@@ -3588,7 +3706,7 @@ function Game(){
                 if(menuData.selectedKanji !== null){
                     isToDrawStatusBar = false;
     
-                    let kanjiInfo = adventureKanjiFileData[menuData.selectedKanji];
+                    let kanjiInfo = kanjiFileData[menuData.selectedKanji];
                     let playerKanjiInfo = playerKanjiData.kanjiList[menuData.selectedKanji];
     
                     context.fillStyle = 'hsl(0, 0%, 10%, 55%)';
@@ -3624,13 +3742,13 @@ function Game(){
                     context.textAlign = 'center';
                     context.fillText("Successfully captured "+playerKanjiInfo.trialSuccesses+ " times.", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, belowStoryY+45);
                     context.fillText("Mastery stage "+playerKanjiInfo.masteryStage, globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, belowStoryY+70);
-                    if(playerKanjiInfo.daysUntilMasteryIncreaseOpportunity > 0){
+                    /*if(playerKanjiInfo.srsCategory === 2 && playerKanjiInfo.srsCategoryInfo.interval > 0){
                         context.font = '16px zenMaruRegular';
                         context.fillText("Increase mastery in " + playerKanjiInfo.daysUntilMasteryIncreaseOpportunity + " days", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, belowStoryY+95);
                     } else {
                         context.font = '16px zenMaruBold';
                         context.fillText("Capture to increase mastery!", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, belowStoryY+95);
-                    }
+                    }*/
     
     
                     if(!playerKanjiInfo.enabled){
@@ -3658,10 +3776,13 @@ function Game(){
                         } 
 
                         let theory = theoryWriteupData[i];                     
-    
+                        
+                        
                         if(menuData.selectedWriteup === i){
-                            context.strokeStyle = 'hsla(60, 100%, 75%, 1)';
+                            context.lineWidth = 4;
+                            context.strokeStyle = 'hsla(60, 100%, 100%, 1)';
                         } else {
+                            context.lineWidth = 2;
                             if(playerTheoryData[i].unlocked){
                                 context.strokeStyle = 'hsla(300, 75%, 75%, 1)';
                             } else {
@@ -3669,7 +3790,7 @@ function Game(){
                             }
     
                         }
-                        context.lineWidth = 2;
+                        
                         //context.fillStyle = 'hsla(0, 0%, 30%, 1)';
                         context.fillStyle = 'black';
                         context.beginPath();
@@ -3811,6 +3932,11 @@ function Game(){
             } // Draw theory screen function ends here
     
             const drawAbilityScreen = function(){
+                context.fillStyle = 'white';
+                context.font = '18px zenMaruRegular';
+                context.textAlign = 'center';
+
+                //context.fillText("Changes to equipped abilities apply after menu is closed ", globalWorldData.worldX+345 + 150, globalWorldData.worldY+680);
                 context.font = '20px ZenMaruRegular';
                 context.textAlign = 'left';
     
@@ -3857,14 +3983,15 @@ function Game(){
     
                         context.drawImage(abilityIcons[playerAbilityData.list[currentIndex].index],globalWorldData.worldX+247+250-currentRowWidth*25+50*j,globalWorldData.worldY+currentY+70+50*i,45,45);
     
-                        context.lineWidth = 2;
                         if(menuData.selectedAbility === currentIndex){
-                            context.strokeStyle = 'hsla(60, 100%, 75%, 1)';
+                            context.strokeStyle = 'hsla(60, 100%, 100%, 1)';
+                            context.lineWidth = 3;
                         } else {
                             context.strokeStyle = 'hsla(0, 30%, 60%, 1)';
+                            context.lineWidth = 2;
                         }
     
-                        context.lineWidth = 2;
+                        
                         context.beginPath();
                         context.roundRect(globalWorldData.worldX+247+250-currentRowWidth*25+50*j, globalWorldData.worldY+currentY+70+50*i, 45, 45, 3);
                         context.stroke();
@@ -3965,6 +4092,7 @@ function Game(){
                     context.font = '18px zenMaruRegular';
                     context.fillText("Welcome back to the world of unnamed kanji game!", globalWorldData.worldX+345 + 150, globalWorldData.worldY+140);
                     context.fillText(`You have been away for ${ls.dayDifference} days, ${ls.hourRemainder} hours, and ${ls.minuteRemainder} minutes.`, globalWorldData.worldX+345 + 150, globalWorldData.worldY+190);
+                    context.fillText(`There are ${playerKanjiData.reviewsDue} kanji due for review.`, globalWorldData.worldX+345 + 150, globalWorldData.worldY+220);
                 }
             } // Draw save screen function ends here
     
@@ -4319,8 +4447,8 @@ function Game(){
             }
         } else if(menuScene === "Kanji List"){
             let rowAmount = 12;
-            for(let i=0;i<Math.ceil(adventureKanjiFileData.length/rowAmount);i++){
-                for(let j=0; j<Math.min(rowAmount,adventureKanjiFileData.length-i*rowAmount);j++){
+            for(let i=0;i<Math.ceil(kanjiFileData.length/rowAmount);i++){
+                for(let j=0; j<Math.min(rowAmount,kanjiFileData.length-i*rowAmount);j++){
                     tooltipBoxes.push({
                         x: globalWorldData.worldY+295+45*j,
                         y: globalWorldData.worldY+140+45*i,
@@ -4578,7 +4706,7 @@ function Game(){
             playerCombatData: playerCombatData,
             playerInventoryData: playerInventoryData,
             playerAbilityData: playerAbilityData,
-            playerKanjiData: playerKanjiData,
+            kanjiList: playerKanjiData.kanjiList,
             playerTheoryData: playerTheoryData,
             playerSrsSettingsData: playerSrsSettingsData,
             playerConditions: playerConditions,
@@ -4604,11 +4732,24 @@ function Game(){
         try {
             let save = JSON.parse(localStorage.getItem("save "+slot));
 
+            playerKanjiData = {
+                trialsThisSession: 0,
+                recentTrialCategories: [],
+
+                reinforcingKanji: [],
+                reinforcesDue: 0,
+
+                reviewingKanji: [],
+                reviewsDue: 0,
+        
+                newKanji: [],
+            };
+
             playerWorldData = save.playerWorldData;
             playerCombatData = save.playerCombatData;
             playerInventoryData = save.playerInventoryData;
             playerAbilityData = save.playerAbilityData;
-            playerKanjiData = save.playerKanjiData;
+            playerKanjiData.kanjiList = save.kanjiList;
             playerTheoryData = save.playerTheoryData;
             playerSrsSettingsData = save.playerSrsSettingsData;
             playerConditions = save.playerConditions;
@@ -4653,16 +4794,43 @@ function Game(){
                 particleSystems.push(game.acquisitionButtonParticleSystem);
             }
 
-            // Restore our date objects
+            // Initialize srs session data from kanji list
+            let currentDate = new Date();
+            
             for(let i=0;i<playerKanjiData.kanjiList.length;i++){
                 let kanji = playerKanjiData.kanjiList[i];
     
-                for(let j=0;j<kanji.trialHistory.length;j++){
-                    kanji.trialHistory[j].dateStamp = new Date(kanji.trialHistory[j].dateStamp);
+                // Restore our date objects
+                if(kanji.lastTrialDate !== null){
+                    kanji.lastTrialDate = new Date(kanji.lastTrialDate);
+                }
+                if(kanji.lastSignificantTrialDate !== null){
+                    kanji.lastSignificantTrialDate = new Date(kanji.lastSignificantTrialDate);
+                }
+
+                kanji.lastTrialNum = null;
+
+                if(kanji.srsCategory === 0){
+                    // If kanji is a new kanji, dont need to do anything but put it right into the new kanji array
+                    playerKanjiData.newKanji.push(kanji);
+                } else if(kanji.srsCategory === 1){
+                    // If kanji was reinforcing, add it to reviews if at least 22 hours has passed since last significant trial
+                    if(kanji.trialSuccesses>0 && kanji.lastSignificantTrialDate!==null && currentDate - kanji.lastSignificantTrialDate > 1000 * 60 * 60 * 22){
+                        kanji.srsCategory = 2;
+                        kanji.srsCategoryInfo = {
+                            currentInterval: 1 + kanji.highestReviewIntervalAchieved/100,
+                        }
+                        kanji.leechScore = Math.max(0,kanji.leechScore-10);
+                        playerKanjiData.reviewingKanji.push(kanji);
+                    } else {
+                        playerKanjiData.reinforcingKanji.push(kanji);
+                    }
+                } else if(kanji.srsCategory === 2){
+                    playerKanjiData.reviewingKanji.push(kanji);
                 }
             }
 
-            let currentDate = new Date();
+            updateReviewsDue(playerKanjiData,currentDate);
 
             // in milliseconds
             let dateDifference = currentDate - new Date(save.date);
@@ -4675,7 +4843,11 @@ function Game(){
                 dayDifference: dayDifference,
                 hourRemainder: hourRemainder,
                 minuteRemainder: minuteRemainder,
+                reviewsDue: playerKanjiData.reviewsDue,
             };
+
+            // hack?
+            playerKanjiData.newKanji.reverse();
     
             alert("successfully loaded i think");
         }
@@ -5165,9 +5337,9 @@ function init(){
     miscImages.gun = new Image();
     miscImages.gun.src = `/assets/Snoopeth's Guns/1px/33.png`
     miscImages.blueberry = new Image();
-    miscImages.blueberry.src = `/assets/Sprout Lands 32/b_27.png`
+    miscImages.blueberry.src = `/assets/Sprout Lands 32/bberry.png`
     miscImages.yellowberry = new Image();
-    miscImages.yellowberry.src = `/assets/Sprout Lands 32/y_27.png`
+    miscImages.yellowberry.src = `/assets/Sprout Lands 32/yberry.png`
 
     // Get a reference to the canvas
     canvas = document.getElementById('canvas');

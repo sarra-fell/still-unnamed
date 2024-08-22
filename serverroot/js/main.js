@@ -27,7 +27,7 @@ let ingameLog = [];
 
 // Measured in in-game seconds. -1 means there is a current dysymbolia event
 // it will stay at 0 if one cannot currently happen and it is waiting for the next opportunity to start
-let timeUntilDysymbolia = 60;
+let timeUntilDysymbolia = 40;
 //hunger: 75, maxHunger: 100,
 
 // The player statistic data, designed to be global
@@ -692,9 +692,9 @@ function drawTooltip() {
                 return;
             } else if(timeUntilDysymbolia < 0){
                 if(condition.golden){
-                    draw(condition.color,condition.name,"いい度胸だ。", true, 12, "hsl(280, 100%, 70%, 70%)");
+                    draw(condition.color,condition.name,"いい度胸です。", true, 12, "hsl(280, 100%, 70%, 70%)");
                 } else {
-                    draw(condition.color,condition.name,"ここが貴方のいるべき場所じゃない。戻ってください。", true, 12);
+                    draw(condition.color,condition.name,"あなたはここにいてはダメです。戻ってください。", true, 12);
                 }
                 return;
             }
@@ -1182,10 +1182,7 @@ let getNextKanji = function(playerKanjiData, noNewKanji = false){
                 highestScore = score;
                 highestPriorityReinforcingKanji = playerKanjiData.reinforcingKanji[i];
             }
-            if(score > 1000){
-                priorities[1]++;
-                priorities[0]-=2;
-            }
+            priorities[1] += Math.max(score,0)/1000;
         }
     }
 
@@ -1208,20 +1205,20 @@ let getNextKanji = function(playerKanjiData, noNewKanji = false){
     }
     normallizeNumberTuple(priorities); normallizeNumberTuple(weights); 
     let deltas = [priorities[0] - weights[0], priorities[1] - weights[1], priorities[2] - weights[2]];
-    if(deltas[0] > deltas[1] && deltas[0] > deltas[2]){
-        // Get a new kanji next!
-        let newk = playerKanjiData.newKanji[playerKanjiData.newKanji.length-1];
-        while(!newk.enabled){
-            playerKanjiData.newKanji.pop();
-            newk = playerKanjiData.newKanji[playerKanjiData.newKanji.length-1];
-        }
-        return playerKanjiData.newKanji[playerKanjiData.newKanji.length-1];
-    } else if(deltas[1] > deltas[2]){
+    if(deltas[2] > deltas[1] && deltas[2] > deltas[0]){
+        // Get a reviewing kanji 
+        return playerKanjiData.reviewingKanji[playerKanjiData.reviewingKanji.length-1];
+    } else if(deltas[1] > deltas[0]){
         // Get the highest priority reinforcing kanji next!
         return highestPriorityReinforcingKanji;
     } else {
-        // Get a reviewing kanji 
-        return playerKanjiData.reviewingKanji[playerKanjiData.reviewingKanji.length-1];
+       // Get a new kanji next!
+       let newk = playerKanjiData.newKanji[playerKanjiData.newKanji.length-1];
+       while(!newk.enabled){
+           playerKanjiData.newKanji.pop();
+           newk = playerKanjiData.newKanji[playerKanjiData.newKanji.length-1];
+       }
+       return playerKanjiData.newKanji[playerKanjiData.newKanji.length-1];
     }
 }
 
@@ -1231,7 +1228,7 @@ function addTrial(playerKanjiData, kanji, succeeded){
 
     if(playerKanjiData.recentTrialCategories.length===10){
         // Move all elements down 1 and add the new trial
-        for(let i=8;i>=0;i--){
+        for(let i=0;i<8;i++){
             playerKanjiData.recentTrialCategories[i] = playerKanjiData.recentTrialCategories[i+1];
         }
         playerKanjiData.recentTrialCategories[9] = kanji.srsCategory;
@@ -1277,7 +1274,7 @@ function addTrial(playerKanjiData, kanji, succeeded){
             playerKanjiData.newKanji.pop();
             globalPlayerStatisticData.totalFirstTryKanji++;
         } else if(kanji.srsCategory === 1){
-            kanji.srsCategoryInfo.currentInterval = kanji.srsCategoryInfo.currentInterval*4*kanji.srsCategoryInfo.reviewMultiplier;
+            kanji.srsCategoryInfo.currentInterval = kanji.srsCategoryInfo.currentInterval*3*kanji.srsCategoryInfo.reviewMultiplier;
         }
         
     } else {
@@ -1290,7 +1287,7 @@ function addTrial(playerKanjiData, kanji, succeeded){
             playerKanjiData.reviewingKanji.pop();
 
             kanji.srsCategoryInfo = {
-                currentInterval: 20,
+                currentInterval: 3000,
                 reviewMultiplier: 1 + 0.5*kanji.masteryStage,
             }
         } else if(kanji.srsCategory === 0){
@@ -1300,7 +1297,7 @@ function addTrial(playerKanjiData, kanji, succeeded){
             playerKanjiData.newKanji.pop();
 
             kanji.srsCategoryInfo = {
-                currentInterval: 20,
+                currentInterval: 3000,
                 reviewMultiplier: 1,
             }
         } else if(kanji.srsCategory === 1){
@@ -1897,7 +1894,7 @@ function updateEquippedAbilities(playerAbilityData,playerCombatData,slotIndex,ab
         unequipModifier = -1;
         playerAbilityData.equippedAbilities[slotIndex] = null;
     } else {
-        // Check if the ability is already equipped
+        // Check if the ability is already equipped and return before effect application if it is
         for(let j=0;j<playerAbilityData.equippedAbilities.length;j++){
             if(j !== slotIndex && playerAbilityData.equippedAbilities[j] === abilityIndex){
                 playerAbilityData.equippedAbilities[slotIndex] = abilityIndex;
@@ -1909,6 +1906,26 @@ function updateEquippedAbilities(playerAbilityData,playerCombatData,slotIndex,ab
     }
 
     // Effect code here
+    let abilityInfo = playerAbilityData.list[abilityIndex];
+    for(let i=0;i<abilityInfo.passiveEffects.length;i++){
+        let effect = abilityInfo.passiveEffects[i];
+        if(effect.type === "multiply dysymbolia timer"){
+            if(unequipModifier === 1){
+                playerAbilityData.autoDysymboliaInterval*=effect.number;
+            } else {
+                playerAbilityData.autoDysymboliaInterval/=effect.number;
+            }
+        } else if("add max hp"){
+            playerCombatData.maxHp += number*upequipModifier;
+            playerCombatData.hp += number*upequipModifier;
+        } else if("add basic attack strength"){
+            playerCombatData.maxHp += number*upequipModifier;
+            playerCombatData.hp += number*upequipModifier;
+        } else if("add max hp"){
+            playerCombatData.maxHp += number*upequipModifier;
+            playerCombatData.hp += number*upequipModifier;
+        }
+    }
 }
 
 function addIngameLogLine(lineText,h,s,l,durationMultiplier,timeStamp){
@@ -1998,7 +2015,10 @@ function Game(){
 
         acquiringAbility: null,
 
-        basicDysymboliaControl: true
+        canManuallyTriggerDysymbolia: false,
+
+        // The amount timeUntilDysymbolia gets set to when it is reset
+        autoDysymboliaInterval: 40,
     };
 
     let playerSrsSettingsData = {
@@ -2259,7 +2279,7 @@ function Game(){
                     if(dialogue.cinematic.trialsLeft < 1 && dialogue.cinematic.specialTrialsLeft < 1){
                         blur = 0;
                         globalInputData.textEntered = "";
-                        timeUntilDysymbolia = 60;
+                        timeUntilDysymbolia = playerAbilityData.autoDysymboliaInterval;
                         note = "無";
                         for(let i in playerConditions){
                             if(playerConditions[i].name === "Dysymbolia"){
@@ -2389,6 +2409,10 @@ function Game(){
                     playerAbilityData.acquiringAbility = null;
                     game.acquisitionButtonParticleSystem.temporary = true;
                     game.acquisitionButtonParticleSystem.particlesLeft = 0;
+
+                    if(abilityInfo.name === "Basic Dysymbolia Mastery"){
+                        playerAbilityData.canManuallyTriggerDysymbolia = true;
+                    }
 
                     dialogue.cinematic = null;
                     blur = 0;
@@ -2554,7 +2578,7 @@ function Game(){
         }
     
         const updateWorldScreen = function(){
-            if(globalInputData.mouseDown && currentTooltip && tooltipBoxes[currentTooltip.index].type === "condition" && tooltipBoxes[currentTooltip.index].condition.name === "Dysymbolia" && playerAbilityData.basicDysymboliaControl){
+            if(globalInputData.mouseDown && currentTooltip && tooltipBoxes[currentTooltip.index].type === "condition" && tooltipBoxes[currentTooltip.index].condition.name === "Dysymbolia" && playerAbilityData.canManuallyTriggerDysymbolia){
                 if(timeUntilDysymbolia > 0){
                     timeUntilDysymbolia = 0;
                     globalPlayerStatisticData.totalDysymboliaManualTriggers++;
@@ -2727,7 +2751,7 @@ function Game(){
     
                     if(globalInputData.currentDirection === "Down" && globalInputData.downPressed){
                         let collision = isCollidingOnTile(playerWorldData.location[0],playerWorldData.location[1],"Down");
-                        if(collision===null || collision === 14){
+                        if(collision===null || collision === 12 || collision === 13 || collision === 14){
                             playerWorldData.location[1]+=32;
                             initializeAnimation("basic movement",playerWorldData,globalInputData.currentDirection);
                             globalPlayerStatisticData.stepCount++;
@@ -2742,7 +2766,7 @@ function Game(){
                         }
                     } else if(globalInputData.currentDirection === "Left" && globalInputData.leftPressed){
                         let collision = isCollidingOnTile(playerWorldData.location[0],playerWorldData.location[1],"Left");
-                        if(collision===null || collision === 13){
+                        if(collision===null || collision === 13 || collision === 15 || collision === 12){
                             playerWorldData.location[0]-=32;
                             initializeAnimation("basic movement",playerWorldData,globalInputData.currentDirection);
                             globalPlayerStatisticData.stepCount++;
@@ -2757,7 +2781,7 @@ function Game(){
                         }
                     } else if(globalInputData.currentDirection === "Right" && globalInputData.rightPressed){
                         let collision = isCollidingOnTile(playerWorldData.location[0],playerWorldData.location[1],"Right");
-                        if(collision===null || collision === 12){
+                        if(collision===null || collision === 14 || collision === 15 || collision === 12){
                             playerWorldData.location[0]+=32;
                             initializeAnimation("basic movement",playerWorldData,globalInputData.currentDirection);
                             globalPlayerStatisticData.stepCount++;
@@ -2772,7 +2796,7 @@ function Game(){
                         }
                     } else if(globalInputData.currentDirection === "Up" && globalInputData.upPressed){
                         let collision = isCollidingOnTile(playerWorldData.location[0],playerWorldData.location[1],"Up");
-                        if(collision===null || collision === 15){
+                        if(collision===null || collision === 15 || collision === 13 || collision === 14){
                             playerWorldData.location[1]-=32;
                             initializeAnimation("basic movement",playerWorldData,globalInputData.currentDirection);
                             globalPlayerStatisticData.stepCount++;
@@ -2834,17 +2858,6 @@ function Game(){
             // Handle input
             if(globalInputData.xClicked){
                 globalInputData.xClicked = false;
-            }
-            if(globalInputData.cClicked){
-                if(globalWorldData.chatting){
-
-                } else if(!globalInputData.inputtingText){
-                    globalWorldData.chatting = true;
-                    globalInputData.inputtingText = true;
-                    globalInputData.finishedInputtingText = false;
-                    globalInputData.textEntered = "";
-                }
-                globalInputData.cClicked = false;
             }
             if(globalInputData.zClicked){
                 // Handle dialogue update on z press
@@ -2969,59 +2982,7 @@ function Game(){
                     }
                 }
             }
-            if(globalWorldData.chatting && globalInputData.finishedInputtingText){
-                globalWorldData.chatting = false;
-                globalInputData.inputtingText = false;
-                if(globalInputData.textEntered[0] !== '$'){
-                    addIngameLogLine(`Mari: ${globalInputData.textEntered}`,0,0,100,1,timeStamp);
-                } else {
-                    // do command 
-                    switch (globalInputData.textEntered) {
-                        case '$fast':
-                            if(movingAnimationDuration === 200){
-                                movingAnimationDuration = 40;
-                                globalWorldData.speedMode = true;
-                            } else {
-                                movingAnimationDuration = 200;
-                                globalWorldData.speedMode = false;
-                            }
-                            break;
-                        case '$power':
-                            playerCombatData.power++;
-                            break;
-                        case '$end':
-                            dialogue = endDialogue(timeStamp);
-                            timeUntilDysymbolia = 60;
-                            break;
-                        case '$timewarp':
-                            // This command saves the game to slot 1 with all the dates shifted 24 hours behind
-                            try {
-                                let twentyfourHours = 24 * 60 * 60 * 1000;
-                                for(let i=0;i<playerKanjiData.kanjiList.length;i++){
-                                    let kanji = playerKanjiData.kanjiList[i];
-                                    if(kanji.lastTrialDate !== null){
-                                        kanji.lastTrialDate = new Date(kanji.lastTrialDate-twentyfourHours);
-                                    }
-                                    if(kanji.lastSignificantTrialDate !== null){
-                                        kanji.lastSignificantTrialDate = new Date(kanji.lastSignificantTrialDate-twentyfourHours);
-                                    }
-                                }
-                                let save = game.outputSaveGame();
-                                save.date = save.date - twentyfourHours;
-                                localStorage.setItem("save 1",JSON.stringify(save));
-                                alert("successfully saved a timewarped save to save 1, i hope");
-                                break;
-                            }
-                            catch (err) {
-                                alert("timewarp save entirely or partially failed: "+err);
-                            }
-                        default:
-                            addIngameLogLine(`Unknown command`,0,50,50,1,timeStamp);
-                            break;
-                    }
-                }
-                globalInputData.textEntered = "";
-            }
+            
         }; // Update world screen function ends here
     
         const updateMenuScreen = function(){
@@ -3040,13 +3001,81 @@ function Game(){
                     //initializeMenuTab();
                 }
             }
-            globalInputData.zClicked = globalInputData.xClicked = globalInputData.cClicked = false;
+            globalInputData.zClicked = globalInputData.xClicked = false;
         };
     
         if(menuScene !== null){
             updateMenuScreen();
         } else {
             updateWorldScreen();
+        }
+        if(globalWorldData.chatting && globalInputData.finishedInputtingText){
+            globalWorldData.chatting = false;
+            globalInputData.inputtingText = false;
+            if(globalInputData.textEntered[0] !== '$'){
+                addIngameLogLine(`Mari: ${globalInputData.textEntered}`,0,0,100,1,timeStamp);
+            } else {
+                // do command 
+                let splitCommand = globalInputData.textEntered.split(' ');
+                switch (splitCommand[0]) {
+                    case '$fast':
+                        if(movingAnimationDuration === 200){
+                            movingAnimationDuration = 40;
+                            globalWorldData.speedMode = true;
+                        } else {
+                            movingAnimationDuration = 200;
+                            globalWorldData.speedMode = false;
+                        }
+                        break;
+                    case '$power':
+                        playerCombatData.power++;
+                        break;
+                    case '$end':
+                        dialogue = endDialogue(timeStamp);
+                        timeUntilDysymbolia = playerAbilityData.autoDysymboliaInterval;
+                        break;
+                    case '$additem':
+                        updateInventory(playerInventoryData, splitCommand[1]);
+                        break;
+                    case '$timewarp':
+                        // This command saves the game to slot 1 with all the dates shifted 24 hours behind
+                        try {
+                            let twentyfourHours = 24 * 60 * 60 * 1000;
+                            for(let i=0;i<playerKanjiData.kanjiList.length;i++){
+                                let kanji = playerKanjiData.kanjiList[i];
+                                if(kanji.lastTrialDate !== null){
+                                    kanji.lastTrialDate = new Date(kanji.lastTrialDate-twentyfourHours);
+                                }
+                                if(kanji.lastSignificantTrialDate !== null){
+                                    kanji.lastSignificantTrialDate = new Date(kanji.lastSignificantTrialDate-twentyfourHours);
+                                }
+                            }
+                            let save = game.outputSaveGame();
+                            save.date = save.date - twentyfourHours;
+                            localStorage.setItem("save 1",JSON.stringify(save));
+                            alert("successfully saved a timewarped save to save 1, i hope");
+                            break;
+                        }
+                        catch (err) {
+                            alert("timewarp save entirely or partially failed: "+err);
+                        }
+                    default:
+                        addIngameLogLine(`Unknown command`,0,50,50,1,timeStamp);
+                        break;
+                }
+            }
+            globalInputData.textEntered = "";
+        }
+        if(globalInputData.cClicked){
+            if(globalWorldData.chatting){
+
+            } else if(!globalInputData.inputtingText){
+                globalWorldData.chatting = true;
+                globalInputData.inputtingText = true;
+                globalInputData.finishedInputtingText = false;
+                globalInputData.textEntered = "";
+            }
+            globalInputData.cClicked = false;
         }
         if(globalInputData.doubleClicked){
             if(currentTooltip!== null){
@@ -3637,7 +3666,7 @@ function Game(){
                         context.fill();
                         context.stroke();
     
-                        if(playerInventoryData.inventory[j + i*5] !== "none"){
+                        if(playerInventoryData.inventory[j + i*5] !== "none" && (draggingObject === null || draggingObject.inventoryIndex !== j + i*5)){
                             context.save();
                             context.translate(globalWorldData.worldY+285+105+67*j,globalWorldData.worldY+160 + 67*i);
                             context.scale(1.4,1.4);
@@ -3648,12 +3677,12 @@ function Game(){
                 }
     
                 if(draggingObject){
-                    let offsetX = globalInputData.mouseX - draggingObject[2], offsetY = globalInputData.mouseY - draggingObject[3];
+                    let offsetX = globalInputData.mouseX - draggingObject.clickX, offsetY = globalInputData.mouseY - draggingObject.clickY;
     
                     context.save();
-                    context.translate(draggingObject[0]+offsetX,draggingObject[1]+offsetY);
+                    context.translate(draggingObject.originalX+offsetX,draggingObject.originalY+offsetY);
                     context.scale(1.4,1.4);
-                    drawItemIcon(draggingObject[4],-1,-1);
+                    drawItemIcon(draggingObject.item,-1,-1);
                     context.restore();
                 }
             } // Draw inventory screen function ends here
@@ -3944,7 +3973,7 @@ function Game(){
     
                 // Draw ability bar
                 for(let i=0;i<playerAbilityData.abilitySlots;i++){
-                    if(playerAbilityData.equippedAbilities[i] !== null){
+                    if(playerAbilityData.equippedAbilities[i] !== null && (draggingObject === null || draggingObject.index !== i)){
                         context.drawImage(abilityIcons[ playerAbilityData.list[playerAbilityData.equippedAbilities[i]].index ],globalWorldData.worldX+247+250-playerAbilityData.abilitySlots*25+50*i,globalWorldData.worldY+currentY,45,45);
     
                         context.lineWidth = 2;
@@ -4080,8 +4109,8 @@ function Game(){
                 }
     
                 if(draggingObject){
-                    let offsetX = globalInputData.mouseX - draggingObject[2], offsetY = globalInputData.mouseY - draggingObject[3];
-                    context.drawImage(abilityIcons[ playerAbilityData.list[draggingObject[4]].index ],draggingObject[0]+offsetX,draggingObject[1]+offsetY,45,45);
+                    let offsetX = globalInputData.mouseX - draggingObject.clickX, offsetY = globalInputData.mouseY - draggingObject.clickY;
+                    context.drawImage(abilityIcons[ playerAbilityData.list[draggingObject.abilityIndex].index ],draggingObject.originalX+offsetX,draggingObject.originalY+offsetY,45,45);
                 }
             } // Draw ability screen function ends here
 
@@ -4269,7 +4298,7 @@ function Game(){
                 let conditionY = globalWorldData.worldY+210+24*conditionLineNum;
     
                 // Handle special drawing for the dysymbolia condition
-                if(condition.name === "Dysymbolia" && timeUntilDysymbolia < 30){
+                if(condition.name === "Dysymbolia" && timeUntilDysymbolia < playerAbilityData.autoDysymboliaInterval/2){
                     context.font = `18px zenMaruBlack`;
                     if(condition.particleSystem === null){
                         condition.particleSystem = createParticleSystem({
@@ -4282,21 +4311,21 @@ function Game(){
                     }
                     let ps = condition.particleSystem;
                     if(timeUntilDysymbolia > -1){
-                        let advancement = (30 - timeUntilDysymbolia)/30;
+                        let advancement = (playerAbilityData.autoDysymboliaInterval/2 - timeUntilDysymbolia)/(playerAbilityData.autoDysymboliaInterval);
                         ps.startingAlpha = advancement/1.5;
                         ps.particleLifespan = 250 + 300*advancement;
-                        ps.particlesPerSec = 40 + 30*advancement;
-                        ps.particleSize = 5 + 5*advancement;
+                        ps.particlesPerSec = 40 + 70*advancement;
+                        ps.particleSize = 6;
                         ps.particleSpeed = 60 + 200*advancement;
                         ps.lightness = 100;
     
-                        condition.color = `hsl(0,0%,${timeUntilDysymbolia*(10/3)}%)`;
+                        condition.color = `hsl(0,0%,${timeUntilDysymbolia*(playerAbilityData.autoDysymboliaInterval/18)}%)`;
                     } else {
                         let advancement = 1;
                         ps.startingAlpha = 1;
                         ps.particleLifespan = 250 + 300*advancement;
-                        ps.particlesPerSec = 40 + 30*advancement;
-                        ps.particleSize = 5 + 5*advancement;
+                        ps.particlesPerSec = 40 + 50*advancement;
+                        ps.particleSize = 5 + 4*advancement;
                         ps.particleSpeed = 60 + 200*advancement;
     
                         ps.lightness = 0;
@@ -4409,8 +4438,17 @@ function Game(){
                             };
                             if (globalInputData.mouseX >= box.x && globalInputData.mouseX <= box.x + box.width && globalInputData.mouseY >= box.y && globalInputData.mouseY <= box.y + box.height) {
                                 if(playerInventoryData.inventory[j + i*5] !== "none"){
-                                    draggingObject = [box.x,box.y,globalInputData.mouseX,globalInputData.mouseY,playerInventoryData.inventory[j + i*5],j + i*5];
-                                    playerInventoryData.inventory[j + i*5] = "none";
+                                    draggingObject = {
+                                        originalX: box.x,
+                                        originalY: box.y,
+                                        clickX: globalInputData.mouseX,
+                                        clickY: globalInputData.mouseY,
+                                        type: "inventory",
+                                        item: playerInventoryData.inventory[j + i*5],
+                                        inventoryIndex: j + i*5,
+                                    }
+                                    //draggingObject = [box.x,box.y,globalInputData.mouseX,globalInputData.mouseY,playerInventoryData.inventory[j + i*5],j + i*5];
+                                    //playerInventoryData.inventory[j + i*5] = "none";
                                 }
                                 break;
                             }
@@ -4418,8 +4456,7 @@ function Game(){
                     }
 
                 } else if(action==="mousemove"){
-                    //draggingObject[2] = globalInputData.mouseX;
-                    //draggingObject[3] = globalInputData.mouseY;
+                    //nothing??
                 } else if(action==="mouseup"){
                     let boxFound = false;
                     for(let i=0;i<Math.ceil(playerInventoryData.inventory.length/5);i++){
@@ -4432,16 +4469,16 @@ function Game(){
                             };
                             if (globalInputData.mouseX >= box.x && globalInputData.mouseX <= box.x + box.width && globalInputData.mouseY >= box.y && globalInputData.mouseY <= box.y + box.height) {
                                 boxFound = true;
-                                playerInventoryData.inventory[draggingObject[5]] = playerInventoryData.inventory[j + i*5];
-                                playerInventoryData.inventory[j + i*5] = draggingObject[4];
+                                playerInventoryData.inventory[draggingObject.inventoryIndex] = playerInventoryData.inventory[j + i*5];
+                                playerInventoryData.inventory[j + i*5] = draggingObject.item;
                                 initializeMenuTab();
                                 break;
                             }
                         }
                     }
-                    if(!boxFound){
-                        playerInventoryData.inventory[draggingObject[5]] = draggingObject[4];
-                    }
+                    /*if(!boxFound){
+                        playerInventoryData.inventory[draggingObject.inventoryIndex] = draggingObject.inventoryIndex;
+                    }*/
                     draggingObject = null;
                 }
             }
@@ -4599,7 +4636,15 @@ function Game(){
             handleDraggingObject = function(action){
                 if(action==="mousedown"){
                     if(currentTooltip && tooltipBoxes[currentTooltip.index].type === "ability menu ability" && playerAbilityData.acquiredAbilities[playerAbilityData.list[tooltipBoxes[currentTooltip.index].index].name]){
-                        draggingObject = [tooltipBoxes[currentTooltip.index].x,tooltipBoxes[currentTooltip.index].y,globalInputData.mouseX,globalInputData.mouseY,tooltipBoxes[currentTooltip.index].index];
+                        draggingObject = {
+                            originalX: tooltipBoxes[currentTooltip.index].x,
+                            originalY: tooltipBoxes[currentTooltip.index].y,
+                            clickX: globalInputData.mouseX,
+                            clickY: globalInputData.mouseY,
+                            type: "ability",
+                            abilityIndex: tooltipBoxes[currentTooltip.index].index, //todo: make a system that replaces the tooltipbox "hack" with something more informative, decoupled, and useful
+                            source: "ability list"
+                        }
                     } else {
                         for(let i=0;i<playerAbilityData.abilitySlots;i++){
                             let box = {
@@ -4610,8 +4655,17 @@ function Game(){
                             };
                             if (globalInputData.mouseX >= box.x && globalInputData.mouseX <= box.x + box.width && globalInputData.mouseY >= box.y && globalInputData.mouseY <= box.y + box.height) {
                                 if(playerAbilityData.equippedAbilities[i] !== null){
-                                    draggingObject = [box.x,box.y,globalInputData.mouseX,globalInputData.mouseY,playerAbilityData.equippedAbilities[i]];
-                                    updateEquippedAbilities(playerAbilityData,playerCombatData,i,null)
+                                    draggingObject = {
+                                        originalX: box.x,
+                                        originalY: box.y,
+                                        clickX: globalInputData.mouseX,
+                                        clickY: globalInputData.mouseY,
+                                        type: "ability",
+                                        index: i,
+                                        abilityIndex: playerAbilityData.equippedAbilities[i],
+                                        source: "ability bar"
+                                    }
+                                    //updateEquippedAbilities(playerAbilityData,playerCombatData,i,null);
                                 }
                                 break;
                             }
@@ -4619,9 +4673,9 @@ function Game(){
                     }
 
                 } else if(action==="mousemove"){
-                    //draggingObject[2] = globalInputData.mouseX;
-                    //draggingObject[3] = globalInputData.mouseY;
+
                 } else if(action==="mouseup"){
+                    
                     for(let i=0;i<playerAbilityData.abilitySlots;i++){
                         let box = {
                             x: globalWorldData.worldX+247+250-playerAbilityData.abilitySlots*25+50*i,
@@ -4630,10 +4684,14 @@ function Game(){
                             height: 45
                         };
                         if (globalInputData.mouseX >= box.x && globalInputData.mouseX <= box.x + box.width && globalInputData.mouseY >= box.y && globalInputData.mouseY <= box.y + box.height) {
-                            updateEquippedAbilities(playerAbilityData,playerCombatData,i,draggingObject[4])
-                            break;
+                            if(i !== draggingObject.index){
+                                updateEquippedAbilities(playerAbilityData,playerCombatData,i,draggingObject.abilityIndex);
+                            }
+                            draggingObject = null;
+                            return;
                         }
                     }
+                    updateEquippedAbilities(playerAbilityData,playerCombatData,draggingObject.index,null);
                     draggingObject = null;
                 }
             }
@@ -5243,7 +5301,6 @@ Player Src: ${playerWorldData.src}
     updateInventory(playerInventoryData);
     globalInputData.xClicked = globalInputData.zClicked = globalInputData.cClicked = globalInputData.doubleClicked = false;
 }
-
 
 // Loop that waits for assets and starts game
 function initialLoadingLoop(timeStamp){

@@ -1024,7 +1024,7 @@
             ],
             "currentPage": 0,
             "pages": [
-                " I see you've been hard at work studying kanji. Good job. \n \n  What's that? You're a failure? Now now, you don't need to say such things! Not being able to remember is a part of the process, I'm sure you understand. But getting the same kanji wrong over and over can be really frustrating, can't it? That's why I went ahead and disabled a kanji for you for now! That way you can avoid the frustration. You can go to the kanji list and turn it back on whenever you want, or modify or disable this feature in settings if you don't like it. \n \n I don't recommend enabling it if you aren't sure though. I didn't just do it just to make you feel better, theres actually very, very good reasons for doing this to further your learning. I'm sure you have noticed that certain kanji just happen to be really easy for you to remember, and some others just won't click, right? It's fun and productive to work on the kanji that is efficient to learn and to continue looking at new kanji, but it's not really fun, productive, or especially beneficial to continue to try and brute force your way towards trying to remember something that just won't click as well. That's why what I recommend is to keep kanji disabled that were automatically disabled for a while, then go back and undisable the ones you think you are ready to introduce. You can also use a (unimplemented) setting to automatically have me turn on kanji that was automatically disabled after it has been a while. ",
+                " I see you've been hard at work studying kanji. Good job. \n \n  What's that? You're a failure? Now now, you don't need to say such things! Not being able to remember is a part of the process, I'm sure you understand. But getting the same kanji wrong over and over can be really frustrating, can't it? That's why I went ahead and disabled a kanji for you for now! That way you can avoid the frustration. You can go to the kanji list and turn it back on whenever you want, or modify or disable this feature in settings if you don't like it. \n \n I don't recommend disabiling it if you aren't sure though. I didn't just do it just to make you feel better, theres actually very, very good reasons for doing this to further your learning. I'm sure you have noticed that certain kanji just happen to be really easy for you to remember, and some others just won't click, right? It's fun and productive to work on the kanji that is efficient to learn and to continue looking at new kanji, but it's not really fun, productive, or especially beneficial to continue to try and brute force your way towards trying to remember something that just won't click as well. That's why what I recommend is to keep kanji disabled that were automatically disabled for a while, then go back and undisable the ones you think you are ready to introduce. You can also use a (unimplemented) setting to automatically have me turn on kanji that was automatically disabled after it has been a while. ",
                 " Be warned though, when a kanji is disabled, it can still appear in some places. You can't get it from regular kanji trials, but special trials, like certain trials in combat or in ability acqusition, can still feature that kanji! I don't want that to stop you from disabiling some kanji as you can still get away with not having memorized every single kanji beforehand but still, but it might be difficult if you disable too many kanji so be warned. \n \n Go ahead and try managing the enabling and disabling of kanji yourself if you think that'll help, or leave it to me if it's bothersome. But either way, good luck on your adventure! \n \n - Sarracenia"
             ]
         },
@@ -1073,17 +1073,18 @@
                 "static",
                 "dysymbolia"
             ],
-            "passive effects": [
+            "passiveEffects": [
                 {
                     "type": "resistance",
                     "attributes": ["curse"],
                     "number": 10
                 },
                 {
-                    "type": "double dysymbolia timer"
+                    "type": "multiply dysymbolia timer",
+                    "number": 2
                 }
             ],
-            "static effects": [
+            "staticEffects": [
                 {
                     "type": "basic dysymbolia control"
                 }
@@ -1145,20 +1146,22 @@
             "types": ["passive", "static"],
             "passive effects": [
                 {
-                    "type": "increase max hp",
-                    "levelScaling": "linear",
+                    "type": "modify max hp",
+                    "operation": "add",
+                    "levelScaling": 10,
                     "number": 10
                 },
                 {
-                    "type": "increase basic attack strength",
-                    "levelScaling": "linear",
-                    "number": 50
+                    "type": "modify basic attack strength",
+                    "operation": "multiply",
+                    "levelScaling": 0.5,
+                    "number": 1.5
                 }
             ],
             "static effects": [
                 {
-                    "type": "increase base basic attack strength",
-                    "levelScaling": "linear",
+                    "type": "add basic attack strength",
+                    "levelScaling": 1,
                     "number": 1
                 }
             ],
@@ -1336,7 +1339,7 @@
         },
         {
             "name": "Yellow Berries",
-            "desc": "Tastes a little funny but maybe you could get used to it. Decreases the time remaining on all of your negative conditions.",
+            "desc": "Tastes a little funny but maybe you could get used to it. Decreases the time remaining on your temporary negative conditions.",
             "type": "Consumable",
             "color": "#909023",
             "subtypes": ["food","fruit"],

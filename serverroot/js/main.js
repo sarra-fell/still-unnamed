@@ -61,7 +61,7 @@ var globalInputData = {
     downPressed: false, upPressed: false, leftPressed: false, rightPressed: false,
 
     // variables set to be true by input event listeners and set back to false after being handled by scene update
-    downClicked: false, upClicked: false, zClicked: false, xClicked: false, cClicked: false, doubleClicked: false,
+    downClicked: false, upClicked: false, key1Clicked: false, key2Clicked: false, key3Clicked: false, doubleClicked: false,
 
     // for player movement. handled by the input layer
     currentDirection: "Down",
@@ -75,6 +75,26 @@ var globalInputData = {
     //so that we know whether a button was actually fully clicked or not
     mouseDownX: -1, mouseDownY: -1,
 }
+
+/*var keybinds = {
+    key1: 'c', // confirm, continue
+    key2: 'x', // cancel, back
+    key3: 'z', // open chat etc
+    left: 'ArrowLeft',
+    up: 'ArrowUp',
+    right: 'ArrowRight',
+    down: 'ArrowDown',
+}*/
+
+var keybinds = [
+    'ArrowLeft',
+    'ArrowUp',
+    'ArrowRight',
+    'ArrowDown',
+    'c', // confirm, continue
+    'x', // cancel, back
+    'z', // open chat etc
+]
 
 const masteryStageIntervals = [0,1,3,7,21,90,Infinity];
 const masteryStageColors = [
@@ -419,6 +439,11 @@ function areImageAssetsLoaded() {
             return false;
         }
     }
+    for (const [key, value] of Object.entries(miscImages)) {
+        if(!value.complete){
+            return false;
+        }
+    }
     return true;
 }
 
@@ -486,19 +511,30 @@ let loveButton = {
 };
 
 window.addEventListener('keydown',function(e) {
-    switch (e.key) {
-       case 'ArrowLeft': globalInputData.leftPressed=true; if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Left"; return;
-       case 'ArrowUp': globalInputData.upPressed=true; globalInputData.upClicked=true; if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Up"; return;
-       case 'ArrowRight': globalInputData.rightPressed=true; if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Right"; return;
-       case 'ArrowDown': globalInputData.downPressed=true; globalInputData.downClicked=true; if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Down"; return;
-       case 'Enter': globalInputData.finishedInputtingText=true; return;
-       case 'X': 
-       case 'x': globalInputData.xClicked=true; break;
-       case 'Z': 
-       case 'z': globalInputData.zClicked=true; break;
-       case 'C': 
-       case 'c': globalInputData.cClicked=true; break;
-   }
+    if(e.key === keybinds[0]){
+        globalInputData.leftPressed=true; 
+        if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Left"; return;
+    } else if(e.key === keybinds[1]){
+        globalInputData.upPressed=true; 
+        globalInputData.upClicked=true; 
+        if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Up"; return;
+    } else if(e.key === keybinds[2]){
+        globalInputData.rightPressed=true; 
+        if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Right"; return;
+    } else if(e.key === keybinds[3]){
+        globalInputData.downPressed=true; 
+        globalInputData.downClicked=true; 
+        if(!globalInputData.currentDirectionFrozen) globalInputData.currentDirection="Down"; return;
+    } else if(e.key === keybinds[4]){
+        globalInputData.key1Clicked=true;
+    } else if(e.key === keybinds[5]){
+        globalInputData.key2Clicked=true;
+    } else if(e.key === keybinds[6]){
+        globalInputData.key3Clicked=true;
+    } else if(e.key === 'Enter'){
+        globalInputData.finishedInputtingText=true; return;
+    }
+
    if(!globalInputData.finishedInputtingText){
         switch (e.key) {
         case 'Backspace': if(globalInputData.textEntered.length>0){
@@ -694,7 +730,7 @@ function drawTooltip() {
                 if(condition.golden){
                     draw(condition.color,condition.name,"いい度胸です。", true, 12, "hsl(280, 100%, 70%, 70%)");
                 } else {
-                    draw(condition.color,condition.name,"あなたはここにいてはダメです。戻ってください。", true, 12);
+                    draw(condition.color,condition.name,"ここにいてはダメです。戻ってください。", true, 12);
                 }
                 return;
             }
@@ -735,7 +771,7 @@ function drawTooltip() {
         let kanji = kanjiFileData[tooltipBox.index];
         let text = kanji.story;
         context.font = '20px Arial';
-        draw('black',kanji.symbol + "   " + kanji.keyword,text)
+       draw('black',kanji.symbol + "   " + kanji.keyword,text)
     }
 }
 
@@ -1182,11 +1218,11 @@ let getNextKanji = function(playerKanjiData, noNewKanji = false){
                 highestScore = score;
                 highestPriorityReinforcingKanji = playerKanjiData.reinforcingKanji[i];
             }
-            priorities[1] += Math.max(score,0)/1000;
+            priorities[1] += Math.max(score,0.0001)/1000;
         }
     }
 
-    if(priorities[1] !== 0){
+    if(priorities[1] > 1){
         priorities[1]+=10;
     }
     if(priorities[2] !== 0){
@@ -1226,14 +1262,16 @@ let getNextKanji = function(playerKanjiData, noNewKanji = false){
 function addTrial(playerKanjiData, kanji, succeeded){
     let currentDate = new Date();
 
-    if(playerKanjiData.recentTrialCategories.length===10){
-        // Move all elements down 1 and add the new trial
-        for(let i=0;i<8;i++){
-            playerKanjiData.recentTrialCategories[i] = playerKanjiData.recentTrialCategories[i+1];
+    if(kanji.srsCategory < 3){
+        if(playerKanjiData.recentTrialCategories.length===10){
+            // Move all elements down 1 and add the new trial
+            for(let i=0;i<8;i++){
+                playerKanjiData.recentTrialCategories[i] = playerKanjiData.recentTrialCategories[i+1];
+            }
+            playerKanjiData.recentTrialCategories[9] = kanji.srsCategory;
+        } else {
+            playerKanjiData.recentTrialCategories.push(kanji.srsCategory);
         }
-        playerKanjiData.recentTrialCategories[9] = kanji.srsCategory;
-    } else {
-        playerKanjiData.recentTrialCategories.push(kanji.srsCategory);
     }
 
     kanji.lastTrialNum = playerKanjiData.trialsThisSession;
@@ -1273,7 +1311,7 @@ function addTrial(playerKanjiData, kanji, succeeded){
 
             playerKanjiData.newKanji.pop();
             globalPlayerStatisticData.totalFirstTryKanji++;
-        } else if(kanji.srsCategory === 1){
+        } else if(kanji.srsCategory === 1 && reinforcingKanjiScoring(kanji) > 0){
             kanji.srsCategoryInfo.currentInterval = kanji.srsCategoryInfo.currentInterval*3*kanji.srsCategoryInfo.reviewMultiplier;
         }
         
@@ -1287,7 +1325,7 @@ function addTrial(playerKanjiData, kanji, succeeded){
             playerKanjiData.reviewingKanji.pop();
 
             kanji.srsCategoryInfo = {
-                currentInterval: 3000,
+                currentInterval: 20,
                 reviewMultiplier: 1 + 0.5*kanji.masteryStage,
             }
         } else if(kanji.srsCategory === 0){
@@ -1297,7 +1335,7 @@ function addTrial(playerKanjiData, kanji, succeeded){
             playerKanjiData.newKanji.pop();
 
             kanji.srsCategoryInfo = {
-                currentInterval: 3000,
+                currentInterval: 20,
                 reviewMultiplier: 1,
             }
         } else if(kanji.srsCategory === 1){
@@ -1438,6 +1476,11 @@ function updateInventory(playerInventoryData,addItem = "none",addMenuTooltips = 
     reapplyTooltip();
 }
 
+function playerTakeDamage(playerStatData,damage){
+    playerStatData.combatData.hp-=damage;
+    globalPlayerStatisticData.totalDamageTaken+=damage;
+}
+
 // Will add graphics associated with awarding stuff to the player much later
 function awardPlayer(playerInventoryData,award,timeStamp){
     if(typeof award === "object"){
@@ -1488,7 +1531,7 @@ function useItem(playerInventoryData,playerCombatData,playerConditions,inventory
 
     if(info.name === "Dev Gun"){
         addIngameLogLine(`You feel really cool for having this don't you.`,180,100,70,1.7,performance.now());
-        if(movingAnimationDuration === 200){
+        /*if(movingAnimationDuration === 200){
             movingAnimationDuration = 40;
             globalWorldData.speedMode = true;
         } else {
@@ -1498,7 +1541,7 @@ function useItem(playerInventoryData,playerCombatData,playerConditions,inventory
         playerCombatData.power++;
         var input = document.createElement("input");
         input.setAttribute("type", "text");
-        document.getElementById("textboxContainer").appendChild(input);
+        document.getElementById("textboxContainer").appendChild(input);*/
     } else {
         for(const eff of info.effectList){
             if(eff === "heal"){
@@ -1887,45 +1930,93 @@ let takeEnemyActions = function(timeStamp, roomEnemies, combat){
     return combat;
 }
 
-function updateEquippedAbilities(playerAbilityData,playerCombatData,slotIndex,abilityIndex){
-    // 1 if equipping the ability, -1 if unequipping
-    let unequipModifier = 1;
-    if(abilityIndex === null){
-        unequipModifier = -1;
-        playerAbilityData.equippedAbilities[slotIndex] = null;
-    } else {
-        // Check if the ability is already equipped and return before effect application if it is
-        for(let j=0;j<playerAbilityData.equippedAbilities.length;j++){
-            if(j !== slotIndex && playerAbilityData.equippedAbilities[j] === abilityIndex){
-                playerAbilityData.equippedAbilities[slotIndex] = abilityIndex;
-                playerAbilityData.equippedAbilities[j] = null;
-                return;
-            }
-        }
-        playerAbilityData.equippedAbilities[slotIndex] = abilityIndex;
+// Recalculates all modifiers, call this whenever modifiers are added or removed
+function updateModifiers(playerStatData){
+    /*{   do this later
+                    "statCategory": "resistances",
+                    "stat": "curse resistance",
+                    "type": "multiplicative",
+                    "number": 1.1
+                },*/
+    // Reset modified stats. TODO: System pending revision
+    for(let i=0;i<playerStatData.baseStats.combatBaseStats.length;i++){
+        playerStatData.combatData[playerStatData.baseStats.combatBaseStats[i][0]] = playerStatData.baseStats.combatBaseStats[i][1];
+    }
+    for(let i=0;i<playerStatData.baseStats.generalBaseStats.length;i++){
+        playerStatData[playerStatData.baseStats.generalBaseStats[i][0]] = playerStatData.baseStats.generalBaseStats[i][1];
     }
 
-    // Effect code here
-    let abilityInfo = playerAbilityData.list[abilityIndex];
-    for(let i=0;i<abilityInfo.passiveEffects.length;i++){
-        let effect = abilityInfo.passiveEffects[i];
-        if(effect.type === "multiply dysymbolia timer"){
-            if(unequipModifier === 1){
-                playerAbilityData.autoDysymboliaInterval*=effect.number;
-            } else {
-                playerAbilityData.autoDysymboliaInterval/=effect.number;
+    let multiplicativeModifiers = [];
+    for(let i=0;i<playerStatData.statModifiers.length;i++){
+        // Apply additive stat multipliers and defer multiplicative ones
+        let mod = playerStatData.statModifiers[i];
+        if(mod.type === "additive"){
+            if(mod.statCategory === "general"){
+                playerStatData[mod.stat] += mod.number;
+            } else if(mod.statCategory === "combat"){
+                playerStatData.combatData[mod.stat] += mod.number;
             }
-        } else if("add max hp"){
-            playerCombatData.maxHp += number*upequipModifier;
-            playerCombatData.hp += number*upequipModifier;
-        } else if("add basic attack strength"){
-            playerCombatData.maxHp += number*upequipModifier;
-            playerCombatData.hp += number*upequipModifier;
-        } else if("add max hp"){
-            playerCombatData.maxHp += number*upequipModifier;
-            playerCombatData.hp += number*upequipModifier;
+        } else {
+            multiplicativeModifiers.push(mod);
         }
     }
+    for(let i=0;i<multiplicativeModifiers.length;i++){
+        // Apply additive stat multipliers and defer multiplicative ones
+        let mod = multiplicativeModifiers[i];
+        if(mod.statCategory === "general"){
+            playerStatData[mod.stat] *= mod.number;
+        } else if(mod.statCategory === "combat"){
+            playerStatData.combatData[mod.stat] *= mod.number;
+        }
+    }
+};
+
+function unequipAbility(playerAbilityData,playerStatData,slotIndex,abilityIndex){
+    playerAbilityData.equippedAbilities[slotIndex] = null;
+
+    // Remove modifiers 
+    for(let i=playerStatData.statModifiers.length-1;i>=0;i--){
+        if(playerStatData.statModifiers[i].sourceType === "ability" && playerStatData.statModifiers[i].source === abilityIndex){
+            playerStatData.statModifiers.splice(i,1);
+        }
+    }
+    updateModifiers(playerStatData);
+}
+
+function equipAbility(playerAbilityData,playerStatData,slotIndex,abilityIndex){
+    // Check if the ability is already equipped and return before effect application if it is
+    for(let j=0;j<playerAbilityData.equippedAbilities.length;j++){
+        if(j !== slotIndex && playerAbilityData.equippedAbilities[j] === abilityIndex){
+            playerAbilityData.equippedAbilities[j] = playerAbilityData.equippedAbilities[slotIndex];
+            playerAbilityData.equippedAbilities[slotIndex] = abilityIndex;
+            return;
+        }
+    }
+    // Check if an ability is being unequpped at the same time 
+    if(playerAbilityData.equippedAbilities[slotIndex] !== null){
+        unequipAbility(playerAbilityData,playerStatData,slotIndex,playerAbilityData.equippedAbilities[slotIndex]);
+    }
+    playerAbilityData.equippedAbilities[slotIndex] = abilityIndex;
+
+    // Effect code here
+    let abilityInfo = abilityFileData[playerAbilityData.list[abilityIndex].index];
+
+    if(abilityInfo.equippedModifiers !== undefined){
+        for(let i=0;i<abilityInfo.equippedModifiers.length;i++){
+            let mod = abilityInfo.equippedModifiers[i];
+            if(mod.stat !== undefined){
+                playerStatData.statModifiers.push({
+                    statCategory:  mod.statCategory,
+                    stat: mod.stat,
+                    type: mod.type,
+                    number: mod.number,
+                    sourceType: "ability",
+                    source: abilityIndex
+                });
+            }
+        }
+    }
+    updateModifiers(playerStatData);
 }
 
 function addIngameLogLine(lineText,h,s,l,durationMultiplier,timeStamp){
@@ -1981,12 +2072,44 @@ function Game(){
         color: "#caa8ff",
     };
 
-    // Player state relevant for combat
-    let playerCombatData = {
-        level: 1,
-        hp: 40, maxHp: 40,
-        power: 0, powerSoftcap: 5
-    };
+    // Player data for keeping track of stats/miscellanous player state that doesnt go into the other categories
+    let playerStatData = {
+        // stat modifiers contain fields:
+        // "stat" - what stat is being modified
+        // "sourceType" - currently "ability" or "condition"
+        // "source" - what is applying this modifier specfically, name of ability for ability or the number ID of the condition
+        // "type" - how it modifies that stat, additive or multiplicative 
+        // "number" - degree of modification 
+        statModifiers: [],
+
+        // currently for defining a temporarily altered relationship to status conditions, there will probably be other special modifiers
+        specialModifiers: [],
+
+        power: 0, powerSoftcap: 5,
+        autoDysymboliaInterval: 40,
+
+        combatData: {
+            hp: 40, maxHp: 40,
+            attackPower: 2,
+            resistances: {}
+        },
+
+         // having a base version of a stat implies that it can be changed with a stat modifier
+        // a base stat is the version of the stat before appling stat modifiers
+        // this means that ways of changing a stat that are not modifiers change the base stat, like ability effects that apply while acquired
+        baseStats: {
+            combatBaseStats: [
+                ["maxHp",40],
+                ["attackPower",2]
+            ],
+            baseResistances: [
+
+            ],
+            generalBaseStats: [
+                ["autoDysymboliaInterval", 40]
+            ]
+        }
+    }
 
     // Player state regarding inventory
     let playerInventoryData = {
@@ -2010,15 +2133,12 @@ function Game(){
         acquiredAbilities: {},
 
         // Array of integer indexes for listed abilities
-        // The ones that are over the maximum amount of abilities are ignored
+        // The ones that are over the current maximum amount of abilities are ignored
         equippedAbilities: [null,null,null,null,null,null,null,null,null,null],
 
         acquiringAbility: null,
 
         canManuallyTriggerDysymbolia: false,
-
-        // The amount timeUntilDysymbolia gets set to when it is reset
-        autoDysymboliaInterval: 40,
     };
 
     let playerSrsSettingsData = {
@@ -2186,8 +2306,7 @@ function Game(){
             }
     
             if(poisonDamageTaken>0){
-                playerCombatData.hp-=poisonDamageTaken;
-                globalPlayerStatisticData.totalDamageTaken+=poisonDamageTaken;
+                playerTakeDamage(playerStatData,poisonDamageTaken);
                 addIngameLogLine(`Took ${poisonDamageTaken} poison damage.`,78,100,40,1.5,timeStamp);
             }
     
@@ -2200,7 +2319,7 @@ function Game(){
         let applyPlayerActionEffect = function(){
             let enemy = combat.enemy;
     
-            let damage = Math.min(2,enemy.hp);
+            let damage = Math.min(Math.round(playerStatData.combatData.attackPower),enemy.hp);
             enemy.hp -= damage;
             globalPlayerStatisticData.totalDamageDealt+=damage;
             addIngameLogLine(`Mari stomped the lizard dealing ${damage} damage!`,0,100,100,1.5,timeStamp);
@@ -2223,8 +2342,7 @@ function Game(){
             let enemyInfo = enemyFileData[enemy.fileDataIndex];
             let action = combat.currentEnemyAction.actionInfo;
     
-            playerCombatData.hp -= action.power;
-            globalPlayerStatisticData.totalDamageTaken += action.power;
+            playerTakeDamage(playerStatData,action.power);
             addIngameLogLine(action.text.replace("{damage}", action.power),0,90,70,1.5,timeStamp);
     
             if(action.condition !== undefined){
@@ -2256,6 +2374,49 @@ function Game(){
     
         // Usually called when the player presses a key but can be called for other reasons during a cinematic
         let advanceDialogueState = function(advanceToNextLine = true){
+
+            let beginRegularKanjiTrial = function(specialTrialsLeft){
+                timeUntilDysymbolia = -1;
+                let kanjiPlayerInfo = null;
+                if(specialTrialsLeft>0){
+                    kanjiPlayerInfo = getNextKanji(playerKanjiData,true);
+                } else {
+                    kanjiPlayerInfo = getNextKanji(playerKanjiData);
+                }
+                let kanjiFileInfo = kanjiFileData[kanjiPlayerInfo.index];
+                let specialParticleSystem = {
+                    hue: [0], saturation: [30], lightness: [80],
+                    particlesPerSec: 15, drawParticles: 0, newParticle: 1,
+                    particleSize: 4, particleLifespan: 1400, particleSpeed: 20,
+                    specialDrawLocation: true,
+                };
+                
+                if(kanjiPlayerInfo.srsCategory===0){
+                    specialParticleSystem.hue = [185,300]; 
+                    specialParticleSystem.saturation = [80,80];
+                    specialParticleSystem.lightness = [75,75];
+                    specialParticleSystem.particleLifespan = 1900;
+                    specialParticleSystem.particleSize = 3;
+                    specialParticleSystem.particlesPerSec = 30;
+                } else if(kanjiPlayerInfo.srsCategory===2){
+                    let masteryHsla = masteryStageColors[kanjiPlayerInfo.masteryStage];
+                    specialParticleSystem.hue = masteryHsla[0]; 
+                    specialParticleSystem.saturation = masteryHsla[1];
+                    specialParticleSystem.lightness = masteryHsla[2];
+                    specialParticleSystem.particleLifespan = 1900;
+                    specialParticleSystem.particleSize = 5;
+                    specialParticleSystem.particlesPerSec = 12;
+                }
+                particleSystems.push(createParticleSystem(specialParticleSystem));
+                dialogue.cinematic = newDysymboliaCinematic(timeStamp,1,dialogue.cinematic.trialsLeft,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index],dialogue.cinematic.startTime,dialogue.cinematic.trialedKanjiIndexes,dialogue.cinematic.specialTrialsLeft);
+
+                dialogue.textLines[dialogue.currentLine] = dialogue.textLines[dialogue.currentLine] + " " + kanjiFileInfo.symbol + "...";
+                globalInputData.inputtingText = true;
+                globalInputData.finishedInputtingText = false;
+                globalInputData.textEntered = "";
+
+                return;
+            }
             
             let advanceDysymboliaCinematicState = function(){
                 // Phase 0 is the introduction phase where the text line is shown but no input has started yet.
@@ -2279,7 +2440,7 @@ function Game(){
                     if(dialogue.cinematic.trialsLeft < 1 && dialogue.cinematic.specialTrialsLeft < 1){
                         blur = 0;
                         globalInputData.textEntered = "";
-                        timeUntilDysymbolia = playerAbilityData.autoDysymboliaInterval;
+                        timeUntilDysymbolia = playerStatData.autoDysymboliaInterval;
                         note = "無";
                         for(let i in playerConditions){
                             if(playerConditions[i].name === "Dysymbolia"){
@@ -2322,49 +2483,8 @@ function Game(){
                         return;
                     }
 
-                    // If there are regular trials left, start a regular trial at phase 1
                     if(dialogue.cinematic.trialsLeft > 0){
-                        
-    
-                       timeUntilDysymbolia = -1;
-                        let kanjiPlayerInfo = null;
-                        if(dialogue.cinematic.specialTrialsLeft>0){
-                            kanjiPlayerInfo = getNextKanji(playerKanjiData,true);
-                        } else {
-                            kanjiPlayerInfo = getNextKanji(playerKanjiData);
-                        }
-                        let kanjiFileInfo = kanjiFileData[kanjiPlayerInfo.index];
-                        let specialParticleSystem = {
-                            hue: [0], saturation: [30], lightness: [80],
-                            particlesPerSec: 15, drawParticles: 0, newParticle: 1,
-                            particleSize: 4, particleLifespan: 1400, particleSpeed: 20,
-                            specialDrawLocation: true,
-                        };
-                        
-                        if(kanjiPlayerInfo.srsCategory===0){
-                            specialParticleSystem.hue = [185,300]; 
-                            specialParticleSystem.saturation = [80,80];
-                            specialParticleSystem.lightness = [75,75];
-                            specialParticleSystem.particleLifespan = 1900;
-                            specialParticleSystem.particleSize = 3;
-                            specialParticleSystem.particlesPerSec = 30;
-                        } else if(kanjiPlayerInfo.srsCategory===2){
-                            let masteryHsla = masteryStageColors[kanjiPlayerInfo.masteryStage];
-                            specialParticleSystem.hue = masteryHsla[0]; 
-                            specialParticleSystem.saturation = masteryHsla[1];
-                            specialParticleSystem.lightness = masteryHsla[2];
-                            specialParticleSystem.particleLifespan = 1900;
-                            specialParticleSystem.particleSize = 5;
-                            specialParticleSystem.particlesPerSec = 12;
-                        }
-                        particleSystems.push(createParticleSystem(specialParticleSystem));
-                        dialogue.cinematic = newDysymboliaCinematic(timeStamp,1,dialogue.cinematic.trialsLeft,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index],dialogue.cinematic.startTime,dialogue.cinematic.trialedKanjiIndexes,dialogue.cinematic.specialTrialsLeft);
-    
-                        dialogue.textLines[dialogue.currentLine] = dialogue.textLines[dialogue.currentLine] + " " + kanjiFileInfo.symbol + "...";
-                        globalInputData.inputtingText = true;
-                        globalInputData.finishedInputtingText = false;
-                        globalInputData.textEntered = "";
-
+                        beginRegularKanjiTrial(dialogue.cinematic.specialTrialsLeft);
                         return;
                     }
 
@@ -2403,7 +2523,7 @@ function Game(){
                     let playerAbilityInfo = playerAbilityData.list[playerAbilityData.acquiringAbility];
                     let abilityInfo = abilityFileData[playerAbilityInfo.index];
 
-                    playerCombatData.power -= abilityInfo.acquisitionPower;
+                    playerStatData.power -= abilityInfo.acquisitionPower;
                     playerAbilityInfo.acquired = true;
                     playerAbilityData.acquiredAbilities[abilityInfo.name] = true;
                     playerAbilityData.acquiringAbility = null;
@@ -2412,7 +2532,13 @@ function Game(){
 
                     if(abilityInfo.name === "Basic Dysymbolia Mastery"){
                         playerAbilityData.canManuallyTriggerDysymbolia = true;
+                    } else if(abilityInfo.name === "Body Strengthen"){
+                        playerStatData.baseStats.combatBaseStats[1][1]+=1;
+                        updateModifiers(playerStatData);
+                    } else if(abilityInfo.name === "Limit Break"){
+                        playerStatData.powerSoftcap+=5;
                     }
+
 
                     dialogue.cinematic = null;
                     blur = 0;
@@ -2567,7 +2693,7 @@ function Game(){
                         particleSystems.push(createParticleSystem(specialParticleSystem));
     
                         timeUntilDysymbolia = -1;
-                        let kanjiPlayerInfo = getNextKanji(playerKanjiData);
+                        let kanjiPlayerInfo = getNextKanji(playerKanjiData,true);
                         let kanjiFileInfo = kanjiFileData[kanjiPlayerInfo.index];
                         dialogue.cinematic = newDysymboliaCinematic(timeStamp,0,lineInfo.normalTrials,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index],timeStamp,[],lineInfo.specialTrials);
     
@@ -2708,7 +2834,7 @@ function Game(){
                         dialogue.cinematic.phaseNum = 3;
                         dialogue.cinematic.phaseStartTime = timeStamp;
                         if(dialogue.cinematic.trialsLeft <= 0){
-                            playerCombatData.power = Math.min(playerCombatData.powerSoftcap,playerCombatData.power+1);
+                            playerStatData.power = Math.min(playerStatData.powerSoftcap,playerStatData.power+1);
                             globalPlayerStatisticData.totalPowerGained++;
                         }
                         if(dialogue.cinematic.result === "pass") {
@@ -2719,8 +2845,7 @@ function Game(){
                             }
                         } else {
                             // TODO: make taking damage a function that checks death and stuff lol
-                            playerCombatData.hp -= 1;
-                            globalPlayerStatisticData.totalDamageTaken += 1;
+                            playerTakeDamage(playerStatData,1);
                             activeDamage = {
                                 // If startFrame is positive, there is currently active damage.
                                 startFrame: timeStamp,
@@ -2745,7 +2870,7 @@ function Game(){
                 }
                 // If there isnt a cinematic theres nothing to handle about the dialogue in update phase
             } else {
-                // If not in an animation, handle movement
+                // If not in an animation (like movement), check for movement input
                 if(playerWorldData.animation===null){
                     playerWorldData.src = [32,spritesheetOrientationPosition[globalInputData.currentDirection]*32];
     
@@ -2856,10 +2981,10 @@ function Game(){
             }
     
             // Handle input
-            if(globalInputData.xClicked){
-                globalInputData.xClicked = false;
+            if(globalInputData.key2Clicked){
+                globalInputData.key2Clicked = false;
             }
-            if(globalInputData.zClicked){
+            if(globalInputData.key1Clicked){
                 // Handle dialogue update on z press
                 if(globalWorldData.chatting){
 
@@ -2956,7 +3081,7 @@ function Game(){
                         console.warn("unknown collision type");
                     }
                 }
-                globalInputData.zClicked = false;
+                globalInputData.key1Clicked = false;
             }
             if(globalInputData.upClicked){
                 globalInputData.upClicked=false;
@@ -2996,12 +3121,12 @@ function Game(){
                     initializeMenuTab();
                 }
             } else if(menuScene === "Abilities"){
-                if(globalInputData.mouseDown && currentTooltip && menuData.selectedAbility !== tooltipBoxes[currentTooltip.index].index && tooltipBoxes[currentTooltip.index].type === "ability menu ability"){
+                if(globalInputData.mouseDown && currentTooltip && draggingObject === null && menuData.selectedAbility !== tooltipBoxes[currentTooltip.index].index && tooltipBoxes[currentTooltip.index].type === "ability menu ability"){
                     menuData.selectedAbility = tooltipBoxes[currentTooltip.index].index;
-                    //initializeMenuTab();
+                    initializeMenuTab();
                 }
             }
-            globalInputData.zClicked = globalInputData.xClicked = false;
+            globalInputData.key1Clicked = globalInputData.key2Clicked = false;
         };
     
         if(menuScene !== null){
@@ -3028,14 +3153,17 @@ function Game(){
                         }
                         break;
                     case '$power':
-                        playerCombatData.power++;
+                        playerStatData.power+=parseInt(splitCommand[1]);
                         break;
                     case '$end':
                         dialogue = endDialogue(timeStamp);
-                        timeUntilDysymbolia = playerAbilityData.autoDysymboliaInterval;
+                        timeUntilDysymbolia = playerStatData.autoDysymboliaInterval;
                         break;
                     case '$additem':
                         updateInventory(playerInventoryData, splitCommand[1]);
+                        break;
+                    case '$master':
+                        playerAbilityData.canManuallyTriggerDysymbolia = true;
                         break;
                     case '$timewarp':
                         // This command saves the game to slot 1 with all the dates shifted 24 hours behind
@@ -3066,7 +3194,7 @@ function Game(){
             }
             globalInputData.textEntered = "";
         }
-        if(globalInputData.cClicked){
+        if(globalInputData.key3Clicked){
             if(globalWorldData.chatting){
 
             } else if(!globalInputData.inputtingText){
@@ -3075,13 +3203,13 @@ function Game(){
                 globalInputData.finishedInputtingText = false;
                 globalInputData.textEntered = "";
             }
-            globalInputData.cClicked = false;
+            globalInputData.key3Clicked = false;
         }
         if(globalInputData.doubleClicked){
             if(currentTooltip!== null){
                 let tooltip = tooltipBoxes[currentTooltip.index];
                 if(tooltip.type === "item"){
-                    useItem(playerInventoryData,playerCombatData,playerConditions,tooltip.inventoryIndex,tooltip.x + tooltip.width/2,tooltip.y + tooltip.height/2);
+                    useItem(playerInventoryData,playerStatData,playerConditions,tooltip.inventoryIndex,tooltip.x + tooltip.width/2,tooltip.y + tooltip.height/2);
                     updateInventory(playerInventoryData,"none",menuScene==="Inventory");
                 }
             }
@@ -4091,7 +4219,7 @@ function Game(){
                         if(playerAbilityInfo.unlocked){
                             context.font = '19px zenMaruMedium';
                             context.fillStyle = "#d600ba";
-                            context.fillText(`${playerCombatData.power}/${abilityInfo.acquisitionPower} power to acquire!`, globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, globalWorldData.worldY+currentY+28);
+                            context.fillText(`${playerStatData.power}/${abilityInfo.acquisitionPower} power to acquire!`, globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, globalWorldData.worldY+currentY+28);
                         }
                     }
                     if(playerAbilityData.acquiringAbility === playerAbilityInfo.index){
@@ -4103,8 +4231,14 @@ function Game(){
                         context.font = '22px zenMaruBlack';
                         context.fillText("Acquired", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, globalWorldData.worldY+670);
     
-                        context.font = '18px zenMaruMedium';
-                        context.fillText("Drag to Equip!", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, globalWorldData.worldY+710);
+                        if(combat === null){
+                            context.font = '18px zenMaruMedium';
+                            context.fillText("Drag to Equip!", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, globalWorldData.worldY+710);
+                        } else {
+                            context.font = '14px zenMaruMedium';
+                            context.fillText("Cannot (yet) equip mid-combat.", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, globalWorldData.worldY+710);
+                        }
+                        
                     }
                 }
     
@@ -4261,10 +4395,10 @@ function Game(){
             context.fillText("Power: ", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 20, globalWorldData.worldY+165);
     
             context.fillStyle = "#40d600";
-            context.fillText(playerCombatData.hp+"/"+playerCombatData.maxHp, globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 20+context.measureText("HP: ").width, globalWorldData.worldY+140);
+            context.fillText(playerStatData.combatData.hp+"/"+playerStatData.combatData.maxHp, globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 20+context.measureText("HP: ").width, globalWorldData.worldY+140);
     
             context.fillStyle = "#d600ba";
-            context.fillText(playerCombatData.power+"/"+playerCombatData.powerSoftcap, globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 20+context.measureText("Power: ").width, globalWorldData.worldY+165);
+            context.fillText(playerStatData.power+"/"+playerStatData.powerSoftcap, globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 20+context.measureText("Power: ").width, globalWorldData.worldY+165);
     
             // Draw currencies
             context.drawImage(miscImages.gems,globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30+20,globalWorldData.worldY+750,26,26);
@@ -4298,7 +4432,7 @@ function Game(){
                 let conditionY = globalWorldData.worldY+210+24*conditionLineNum;
     
                 // Handle special drawing for the dysymbolia condition
-                if(condition.name === "Dysymbolia" && timeUntilDysymbolia < playerAbilityData.autoDysymboliaInterval/2){
+                if(condition.name === "Dysymbolia" && timeUntilDysymbolia < playerStatData.autoDysymboliaInterval/2){
                     context.font = `18px zenMaruBlack`;
                     if(condition.particleSystem === null){
                         condition.particleSystem = createParticleSystem({
@@ -4311,7 +4445,7 @@ function Game(){
                     }
                     let ps = condition.particleSystem;
                     if(timeUntilDysymbolia > -1){
-                        let advancement = (playerAbilityData.autoDysymboliaInterval/2 - timeUntilDysymbolia)/(playerAbilityData.autoDysymboliaInterval);
+                        let advancement = (playerStatData.autoDysymboliaInterval/2 - timeUntilDysymbolia)/(playerStatData.autoDysymboliaInterval);
                         ps.startingAlpha = advancement/1.5;
                         ps.particleLifespan = 250 + 300*advancement;
                         ps.particlesPerSec = 40 + 70*advancement;
@@ -4319,7 +4453,7 @@ function Game(){
                         ps.particleSpeed = 60 + 200*advancement;
                         ps.lightness = 100;
     
-                        condition.color = `hsl(0,0%,${timeUntilDysymbolia*(playerAbilityData.autoDysymboliaInterval/18)}%)`;
+                        condition.color = `hsl(0,0%,${timeUntilDysymbolia*(playerStatData.autoDysymboliaInterval/18)}%)`;
                     } else {
                         let advancement = 1;
                         ps.startingAlpha = 1;
@@ -4611,7 +4745,7 @@ function Game(){
 
             let playerAbilityInfo = playerAbilityList[menuData.selectedAbility];
             let abilityInfo = abilityFileData[playerAbilityInfo.index];
-            if(!playerAbilityInfo.acquired && playerAbilityInfo.unlocked && playerCombatData.power >= abilityInfo.acquisitionPower){
+            if(!playerAbilityInfo.acquired && playerAbilityInfo.unlocked && playerStatData.power >= abilityInfo.acquisitionPower){
                 buttons.push({
                     x:globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+123, y:globalWorldData.worldY+700, width:120, height:30,
                     neutralColor: '#ff6', hoverColor: '#ffffb3', pressedColor: '#66f', color: '#ff6',
@@ -4636,6 +4770,8 @@ function Game(){
             handleDraggingObject = function(action){
                 if(action==="mousedown"){
                     if(currentTooltip && tooltipBoxes[currentTooltip.index].type === "ability menu ability" && playerAbilityData.acquiredAbilities[playerAbilityData.list[tooltipBoxes[currentTooltip.index].index].name]){
+                        menuData.selectedAbility = tooltipBoxes[currentTooltip.index].index;
+                        initializeMenuTab();
                         draggingObject = {
                             originalX: tooltipBoxes[currentTooltip.index].x,
                             originalY: tooltipBoxes[currentTooltip.index].y,
@@ -4655,6 +4791,8 @@ function Game(){
                             };
                             if (globalInputData.mouseX >= box.x && globalInputData.mouseX <= box.x + box.width && globalInputData.mouseY >= box.y && globalInputData.mouseY <= box.y + box.height) {
                                 if(playerAbilityData.equippedAbilities[i] !== null){
+                                    menuData.selectedAbility = playerAbilityData.equippedAbilities[i];
+                                    initializeMenuTab();
                                     draggingObject = {
                                         originalX: box.x,
                                         originalY: box.y,
@@ -4665,13 +4803,11 @@ function Game(){
                                         abilityIndex: playerAbilityData.equippedAbilities[i],
                                         source: "ability bar"
                                     }
-                                    //updateEquippedAbilities(playerAbilityData,playerCombatData,i,null);
                                 }
                                 break;
                             }
                         }
                     }
-
                 } else if(action==="mousemove"){
 
                 } else if(action==="mouseup"){
@@ -4685,13 +4821,13 @@ function Game(){
                         };
                         if (globalInputData.mouseX >= box.x && globalInputData.mouseX <= box.x + box.width && globalInputData.mouseY >= box.y && globalInputData.mouseY <= box.y + box.height) {
                             if(i !== draggingObject.index){
-                                updateEquippedAbilities(playerAbilityData,playerCombatData,i,draggingObject.abilityIndex);
+                                equipAbility(playerAbilityData,playerStatData,i,draggingObject.abilityIndex);
                             }
                             draggingObject = null;
                             return;
                         }
                     }
-                    updateEquippedAbilities(playerAbilityData,playerCombatData,draggingObject.index,null);
+                    unequipAbility(playerAbilityData,playerStatData,draggingObject.index,draggingObject.abilityIndex);
                     draggingObject = null;
                 }
             }
@@ -4761,7 +4897,9 @@ function Game(){
             version: "negative infinity",
     
             playerWorldData: playerWorldData,
-            playerCombatData: playerCombatData,
+            playerStatData: playerStatData,
+            playerCombatData: playerStatData.combatData,
+            baseStats: playerStatData.baseStats,
             playerInventoryData: playerInventoryData,
             playerAbilityData: playerAbilityData,
             kanjiList: playerKanjiData.kanjiList,
@@ -4804,7 +4942,9 @@ function Game(){
             };
 
             playerWorldData = save.playerWorldData;
-            playerCombatData = save.playerCombatData;
+            playerStatData = save.playerStatData;
+            playerStatData.combatData = save.playerCombatData;
+            playerStatData.baseStats = save.baseStats;
             playerInventoryData = save.playerInventoryData;
             playerAbilityData = save.playerAbilityData;
             playerKanjiData.kanjiList = save.kanjiList;
@@ -4831,6 +4971,8 @@ function Game(){
             if(dialogue !== null){
                 dialogue.lineStartTime = performance.now();
             }
+
+            updateModifiers(playerStatData);
             
             // Particle systems have to be made again or nullified
             for(let i=0;i<playerConditions.length;i++){
@@ -5299,7 +5441,7 @@ Player Src: ${playerWorldData.src}
     dialogue = initializeDialogue("scenes","opening scene",performance.now());
     updateConditionTooltips(playerConditions);
     updateInventory(playerInventoryData);
-    globalInputData.xClicked = globalInputData.zClicked = globalInputData.cClicked = globalInputData.doubleClicked = false;
+    globalInputData.key2Clicked = globalInputData.key1Clicked = globalInputData.key3Clicked = globalInputData.doubleClicked = false;
 }
 
 // Loop that waits for assets and starts game

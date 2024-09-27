@@ -1073,14 +1073,11 @@
                 "static",
                 "dysymbolia"
             ],
-            "passiveEffects": [
+            "equippedModifiers": [
                 {
-                    "type": "resistance",
-                    "attributes": ["curse"],
-                    "number": 10
-                },
-                {
-                    "type": "multiply dysymbolia timer",
+                    "statCategory": "general",
+                    "stat": "autoDysymboliaInterval",
+                    "type": "multiplicative",
                     "number": 2
                 }
             ],
@@ -1108,13 +1105,16 @@
             "jpNameWithSeperators": "ディシンボリア+封じ",
             "description": " Equipping this removes the dysymbolia condition, reduces your max HP by 10%, and disables all dysymbolia abilities, until it is unequipped.",
             "types": ["passive"],
-            "passive effects": [
+            "equippedModifiers": [
                 {
-                    "type": "remove dysymbolia"
+                    "status": "dysymbolia",
+                    "type": "suppression"
                 },
                 {
-                    "type": "max hp multiplier",
-                    "number": -0.1
+                    "statCategory": "combat",
+                    "stat": "maxHp",
+                    "type": "multiplicative",
+                    "number": 0.9
                 }
             ],
             "listRequirements": [
@@ -1142,23 +1142,25 @@
             "name": "Body Strengthen",
             "jpName": "身体強化",
             "jpNameWithSeperators": "身体+強化",
-            "description": " Channel your power towards strengthening your physical abilities. \n \n When equipped, increases your max hp by 10% and your basic attack strength by 50% per level. Also, just having it acquired increases your base attack damage by 1 per level.",
+            "description": " Channel your power towards strengthening your physical abilities. \n \n When equipped, increases your max hp by 20% and your basic attack strength by 50%. Also, just having it acquired increases your base attack damage by 1.",
             "types": ["passive", "static"],
-            "passive effects": [
+            "equippedModifiers": [
                 {
-                    "type": "modify max hp",
-                    "operation": "add",
-                    "levelScaling": 10,
-                    "number": 10
+                    "statCategory": "combat",
+                    "stat": "attackPower",
+                    "type": "multiplicative",
+                    "levelScaling": 0.3,
+                    "number": 1.5
                 },
                 {
-                    "type": "modify basic attack strength",
-                    "operation": "multiply",
-                    "levelScaling": 0.5,
-                    "number": 1.5
+                    "statCategory": "combat",
+                    "stat": "maxHp",
+                    "type": "multiplicative",
+                    "levelScaling": 0.1,
+                    "number": 1.2
                 }
             ],
-            "static effects": [
+            "staticEffects": [
                 {
                     "type": "add basic attack strength",
                     "levelScaling": 1,
@@ -1199,7 +1201,7 @@
             "jpNameWithSeperators":"限界+突破",
             "description": " Channel your dysymbolia power in on itself and use it to increase your maximum dysymbolia power.",
             "types": ["static"],
-            "static effects": [
+            "staticEffects": [
                 {
                     "type": "increase max power",
                     "levelScaling": "linear",
@@ -1232,7 +1234,7 @@
             "name": "Dysymbolia Touch",
             "description": " You managed to power up your touch at least. \n \n -Channel 2-, then deal damage based on the result.",
             "types": ["active", "combat", "dysymbolia"],
-            "active effects": [
+            "activeEffects": [
                 {
                     "type": "dysymbolia damage",
                     "channel": 2,
@@ -1259,7 +1261,7 @@
             "name": "Dysymbolia-induced Growth",
             "description": " Only seems to work on some plants and has unusual results, not like natural growth. But it may be helpful? \n \n -Channel 4-, then attempt to induce growth in a plant. A better channel result will lead to a greater likelihood of getting a rarer or more desirable growth result.",
             "types": ["active", "dysymbolia"],
-            "active effects": [
+            "activeEffects": [
                 {
                     "type": "growth"
                 }

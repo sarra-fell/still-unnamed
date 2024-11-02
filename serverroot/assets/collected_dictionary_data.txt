@@ -8,8 +8,11 @@
 好き+すき(2) -  1. liking; being fond of; to one's liking; to one's taste; preferred; favourite 2. liking (romantically); being in love with; beloved 3. faddism; eccentricity 4. as one likes; as it suits one 5. lecherous; lustful; salacious
 緑+みどり(1) -  1. green 2. greenery; verdure
 蜥蜴+とかげ(0) -  1. lizard 2. skink lizard (Scincidae spp.)
-限界突破+no data
+限界+げんかい(0) -  1. limit; bound
+突破+とっぱ(0) -  1. breaking through; breakthrough; penetration 2. surmounting (a difficulty); overcoming; getting over; accomplishing (an aim); reaching (a goal) 3. exceeding; passing; rising above
 封じ+no data
 封じる+ふうじる(0) -  1. to seal (letter) 2. to prevent; to forbid; to block
 身体+からだ(0) -  1. body 2. torso; trunk 3. build; physique; frame; figure 4. health; constitution 5. corpse; dead body
 強化+きょうか(1) -  1. strengthening; intensifying; reinforcement; enhancement; solidification
+お腹+おなか(0) -  1. belly; abdomen; stomach
+腹+はら(2) -  1. abdomen; belly; stomach 2. womb 3. one's mind; one's real intentions; one's true motive 4. courage; nerve; willpower 5. generosity; magnanimity 6. feelings; emotions 7. wide middle part; bulging part 8. inside; interior; inner part 9. anti-node 10. counter for hard roe 11. counter for containers with bulging middles (pots, vases, etc.)

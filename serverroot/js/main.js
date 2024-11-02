@@ -28,7 +28,6 @@ let ingameLog = [];
 // Measured in in-game seconds. -1 means there is a current dysymbolia event
 // it will stay at 0 if one cannot currently happen and it is waiting for the next opportunity to start
 let timeUntilDysymbolia = 40;
-//hunger: 75, maxHunger: 100,
 
 // The player statistic data, designed to be global
 var globalPlayerStatisticData = {
@@ -49,8 +48,6 @@ var globalPlayerStatisticData = {
     totalFirstTryKanji: 0,
     highestIndividualMastery: 0,
 }
-
-//var globalMenuTabList = ["Inventory","Abilities","Kanji List","Theory","Settings","Save"];
 
 var globalInputData = {
     inputtingText: false, 
@@ -75,16 +72,6 @@ var globalInputData = {
     //so that we know whether a button was actually fully clicked or not
     mouseDownX: -1, mouseDownY: -1,
 }
-
-/*var keybinds = {
-    key1: 'c', // confirm, continue
-    key2: 'x', // cancel, back
-    key3: 'z', // open chat etc
-    left: 'ArrowLeft',
-    up: 'ArrowUp',
-    right: 'ArrowRight',
-    down: 'ArrowDown',
-}*/
 
 var keybinds = [
     'ArrowLeft',
@@ -154,7 +141,8 @@ var theoryWriteupData = [];
 var abilityFileData = [];
 var abilityIcons = [];
 var enemyFileData = [];
-var itemInfo = [];
+var itemData = [];
+var conditionData = [];
 
 // array of booleans corrosponding to item info
 var globalItemsDiscovered = [];
@@ -168,8 +156,9 @@ function processGameJsonData(data) {
     theoryWriteupData = gameData.theory;
     abilityFileData = gameData.abilities;
     enemyFileData = gameData.enemies;
-    itemInfo = gameData.items;
-    globalItemsDiscovered = Array(itemInfo.length).fill(false);
+    itemData = gameData.items;
+    conditionData = gameData.conditions;
+    globalItemsDiscovered = Array(itemData.length).fill(false);
 
     dialogueFileData.scenes = dialogueData.scenes;
     dialogueFileData.world = dialogueData.worldDialogue;
@@ -197,7 +186,6 @@ function processGameJsonData(data) {
         }
     }
 
-    // todo: outside schedule
     for (let scene in dialogueFileData.scenes){
         globalPlayerStatisticData.sceneCompletion[scene] = 0;
     }
@@ -407,12 +395,6 @@ const faceBitrate = 96;
 
 // Key pair for misc images
 var miscImages = {};
-
-// Constants to indicate character location in sprite sheets TODO
-const PROTAGONIST = 1;
-const GLORIA = 0;
-const WITCH = 1;
-const ANDRO = 2;
 
 // Constants to indicate position of orientation on spritesheets
 var spritesheetOrientationPosition = {};
@@ -671,6 +653,92 @@ const wrapText = function(ctx, text, y, maxWidth, lineHeight, japanese = false) 
     return lineArray;
 }
 
+/********************************** UI ELEMENT CODE *************************************/
+
+// This section of the code was made in post after struggling with a UI system that didn't end up scaling up
+// It is meant to solve issues where tooltips, graphics, and checking for mouse input are too decoupled not allowing to be able to
+//manage them all the information that is supposed to be associated easily at once when a element is to be added, removed, or disabled.
+
+// This system will simply couple together information that before was annoyingly seperated in several different places requiring cleanup of
+//objects in multiple arrays when a item is to be added, removed, or modified.
+
+// The button system could also be combined with this one but that isn't why this feature is being made, the button system worked just fine before
+//so merging it with this one will be a much lower priority than turning text with tooltips, ability slots, inventory slots, etc, into UI elements to be managed here.
+
+// UI objects will be stored in global arrays:
+let globalStatusBarUiElements = [];
+
+// For all micellanous elements
+let globalUIElements = [];
+
+// A UI object will contain:
+// A name.
+// x, y, width, height. Only rect elements are supported.
+// A type. The type will be used to determine what draw function to use if any at all.
+
+// Optional array of particle systems associated with the element. These systems are drawn over the element when the element is also active and visible and are meant to be seperate
+//from the global particle system array
+
+// Optional tooltip object associated with the element. These can be set up to be displayed over the element when the element is hovered over. Seperate from
+//the other tooltips array, maybe the other tooltips array can be deprecated when ive fully switched over to using this.
+
+// isHoveredOver bool that can be used to check if the element is being hovered over and is automatically checked.
+// isPressedOn bool
+// wasClicked bool that will remain true for a frame after the mouse was released over the element. There is no click callback so in the case of needing to do something
+//when the element is clicked, this should be checked each frame instead of waiting for a callback to be called. There shouldn't be so many elements that a callback is necessary.
+
+//isActive bool, all updating and drawing will be completely disabled when this is false
+//isVisible bool, drawing using the draw function will be skipped with this false, this has no purpose if there is no draw function in the first place
+
+// They may also contain any number of arbitrary member variables that can be used for any purpose necessary for storing information with the element.
+
+function createUiElement(name,type,x,y,width,height, particleSystems = [], tooltip = null){
+    let newUiElement = {
+        name: name,
+        type: type,
+        x: x,
+        y: y,
+        width: width,
+        height: height,
+        
+        particleSystems: particleSystems,
+        tooltip: tooltip,
+
+        isHoveredOver: false,
+        isPressedOn: false,
+        wasClicked: false,
+
+        isActive: true,
+        isVisible: true
+    };
+
+    return newUiElement;
+}
+
+function drawInventorySlot(uiElement,playerInventoryData){
+    context.lineWidth = 2;
+    context.strokeStyle = 'hsla(270, 30%, 60%, 1)';
+    context.beginPath();
+    context.roundRect(uiElement.x, uiElement.y, uiElement.width, uiElement.height, 3);
+    context.stroke();
+
+    if(playerInventoryData.inventory[uiElement.slotNum] !== "none"){
+        drawItemIcon(playerInventoryData.inventory[uiElement.slotNum],uiElement.x,uiElement.y);
+    }
+}
+
+function drawAbilitySlot(uiElement,playerAbilityData){
+    if(playerAbilityData.equippedAbilities[uiElement.slotNum] !== null){
+        context.drawImage(abilityIcons[ playerAbilityData.list[playerAbilityData.equippedAbilities[uiElement.slotNum]].index ],uiElement.x,uiElement.y,45,45);
+    }
+
+    context.lineWidth = 2;
+    context.strokeStyle = 'hsla(0, 30%, 60%, 1)';
+    context.beginPath();
+    context.roundRect(uiElement.x, uiElement.y, uiElement.width, uiElement.height, 3);
+    context.stroke();
+}
+
 // Draws the current tooltip
 function drawTooltip() {
     let draw = function(titleColor,titleText,bodyText,jp = false,titleShadow=0,shadowColor = "hsl(0, 15%, 0%, 70%)"){
@@ -694,7 +762,6 @@ function drawTooltip() {
         context.beginPath();
         context.roundRect(boxX+offsetX, boxY+offsetY, boxWidth, boxHeight, 5);
         context.fill();
-
 
         context.textAlign = 'center';
         context.fillStyle = titleColor;
@@ -720,36 +787,42 @@ function drawTooltip() {
         context.font = '20px zenMaruRegular';
         draw('black', "Definition of " + word, dictionary.entries[word]);
     } else if (tooltipBox.type === "condition"){
-        const condition = tooltipBox.condition;
+        const c = tooltipBox.condition;
+        const cInfo = conditionData[c.id];
+        let cColor = c.color;
+        if(cColor === undefined){
+            cColor = cInfo.color;
+        }
+
         context.font = '20px zenMaruBlack';
-        if(condition.name === "Dysymbolia"){
+        if(cInfo.name === "Dysymbolia"){
             if(timeUntilDysymbolia === 0){
-                draw(condition.color,condition.name,"Character sees visions of a distant world. Next imminent.", false, 12);
+                draw(cColor,cInfo.name,"Character sees visions of a distant world. Next imminent.", false, 12);
                 return;
             } else if(timeUntilDysymbolia < 0){
-                if(condition.golden){
-                    draw(condition.color,condition.name,"いい度胸です。", true, 12, "hsl(280, 100%, 70%, 70%)");
+                if(c.golden){
+                    draw(cColor,cInfo.name,"いい度胸です。", true, 12, "hsl(280, 100%, 70%, 70%)");
                 } else {
-                    draw(condition.color,condition.name,"ここにいてはダメです。戻ってください。", true, 12);
+                    draw(cColor,cInfo.name,"ここにいてはダメです。戻ってください。", true, 12);
                 }
                 return;
             }
         }
 
-        let splitDesc = condition.desc.split("$");
+        let splitDesc = cInfo.desc.split("$");
         let parsedDesc = "";
         for(let i in splitDesc){
             if(splitDesc[i] === "timeUntilDysymbolia"){
                 parsedDesc = parsedDesc + `${timeUntilDysymbolia}`;
             } else if(splitDesc[i] === "turnsLeft"){
-                parsedDesc = parsedDesc + `${condition.turnsLeft}`;
+                parsedDesc = parsedDesc + `${c.turnsLeft}`;
             } else {
                 parsedDesc = parsedDesc + splitDesc[i];
             }
         }
-        draw(condition.color,condition.name,parsedDesc,false,12);
+        draw(cColor,cInfo.name,parsedDesc,false,12);
     } else if (tooltipBox.type === "item"){
-        let info = itemInfo[tooltipBox.item];
+        let info = itemData[tooltipBox.item];
         let splitDesc = info.desc.split("$");
         let parsedDesc = "";
         for(let i in splitDesc){
@@ -954,7 +1027,27 @@ function createParticleSystem(
     newParticle=newParticleTypeZero, temporary=false, specialDrawLocation=false,
     particleSize=7, particleLifespan=1000, mod=1, shift=0, systemLifespan=Infinity, createTime=0,
     gravity=0, particleSpeed=50, particlesLeft=Infinity, particleAcceleration=0,
-    sourceType="point"} = {}) {
+    sourceType="point",templateName="none"} = {}) {
+
+    if(templateName ==="whitenfluffy"){
+        hue=[0,0];
+        saturation=[0,0];
+        lightness=[100,85];
+        particlesPerSec=30;
+        drawParticles=0;
+        newParticle=1;
+        particleSize=8;
+        particleLifespan=700;
+    } else if(templateName ==="water"){
+        hue=[135];
+        saturation=[58];
+        lightness=[68];
+        particlesPerSec=15;
+        drawParticles=0;
+        newParticle=1;
+        particleSize=6;
+        particleLifespan=600;
+    }
 
     if(typeof drawParticles === "number"){
         drawParticles = drawParticleFunctions[drawParticles];
@@ -972,47 +1065,6 @@ function createParticleSystem(
 
     return sys;
 }
-
-let bestParticleSystem = createParticleSystem({
-    x: 600, y:500, hue: [0,240,0], saturation: [100,100,100], lightness: [50,50,100],
-     particlesPerSec: 10, drawParticles: drawParticlesTypeTwo, newParticle: newParticleTypeThree,
-    particleSize: 18, particleLifespan: 1200,
-    particles: [], timeOfLastCreate: -1,
-});
-/*let worstParticleSystem = {
-    x: 600, y:600, hue: 0, particlesPerSec: 50, drawParticles: drawParticlesTypeOne, newParticle: newParticleTypeZero,
-    particleSize: 7, particleLifespan: 1000,
-    particles: [], timeOfLastCreate: -1,
-};*/
-let worstParticleSystem = createParticleSystem({x: 600, y: 600});
-/*let silliestParticleSystem = {
-    x: 600, y:700, hue: 290, particlesPerSec: 160, drawParticles: drawParticlesTypeZero, newParticle: newParticleTypeOne,
-    particleSize: 3, particleLifespan: 1700,
-    particles: [], timeOfLastCreate: -1,
-};*/
-let silliestParticleSystem = createParticleSystem({
-    x: 600, y:700, hue: [60,290], saturation: [100,100], lightness: [60,50],
-    particlesPerSec: 160, drawParticles: drawParticlesTypeZero, newParticle: newParticleTypeOne,
-    particleSize: 3, particleLifespan: 1700,
-});
-let wonkiestParticleSystem = createParticleSystem({
-    x: 400, y:700, hue: [186,300,0], saturation: [100,100,100], lightness: [70,75,100],
-    particlesPerSec: 60, drawParticles: drawParticlesTypeTwo, newParticle: newParticleTypeTwo,
-    particleSize: 12, particleLifespan: 3500, mod: 0.1, shift: 1.4, particleSpeed: 250, gravity: 100
-});
-let playerParticleSystem = createParticleSystem({
-    hue: 205, particlesPerSec: 80, drawParticles: drawParticlesTypeOne, newParticle: newParticleTypeOne,
-    particleSize: 5, particleLifespan: 1500,
-    particles: [], timeOfLastCreate: -1,
-});
-let evilestParticleSystem = createParticleSystem({
-    x: [150,200], y:[700,700], hue: 0, saturation: 0, lightness: 100, startingAlpha: 0.5,
-    particlesPerSec: 50, drawParticles: drawParticlesTypeZero, newParticle: newParticleTypeTwo,
-    particleSize: 7, particleLifespan: 1000, mod: 0.7, shift: 1.8, particleSpeed: 150, gravity: -200,
-    sourceType: "line",
-});
-
-let homeParticleSystems = [evilestParticleSystem,bestParticleSystem,worstParticleSystem,silliestParticleSystem,wonkiestParticleSystem,playerParticleSystem];
 
 function updateParticleSystem(sys,fps,timeStamp){
     // Add all the particles we will keep to this array, to avoid using splice to remove particles
@@ -1057,7 +1109,7 @@ function updateParticleSystem(sys,fps,timeStamp){
 }
 
 // Call to initialize the game when no save file is being loaded and the game is to start from the beginning
-function initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityData){
+function initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityData,playerStatData,playerConditions){
     for(let i=0;i<kanjiFileData.length;i++){
 
         let kanji = {
@@ -1134,6 +1186,14 @@ function initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityDat
     }
 
     playerKanjiData.newKanji.reverse();
+
+    playerConditions.push({
+        id: 0,
+        golden: false,
+        particleSystem: null, // Becomes a particle system when one needs to be drawn behind it
+    });
+
+    //updateHunger(playerStatData,playerConditions,1);
 }
 
 function saveToLocalStorage(slot){
@@ -1383,7 +1443,7 @@ let evaluateUnlockRequirements = function(playerAbilityData, playerTheoryData, r
                 if(!globalItemsDiscovered[i]){
                     continue;
                 }
-                if(itemInfo[i].subtypes.includes(r.itemType)){
+                if(itemData[i].subtypes.includes(r.itemType)){
                     numDiscovered++;
                 }
             }
@@ -1410,9 +1470,10 @@ function updateConditionTooltips(playerConditions){
     context.font = '18px zenMaruMedium';
     context.textAlign = 'left';
     for(let i in playerConditions){
-        const condition = playerConditions[i];
+        const c = playerConditions[i];
+        const cName = conditionData[c.id].name;
 
-        if((conditionLine + condition.name).length > "Conditions: Dysymbolia, Hunger, aaa".length){
+        if((conditionLine + cName).length > "Conditions: Dysymbolia, Hunger, aaa".length){
             conditionLine = "";
             conditionLineNum++;
         }
@@ -1420,13 +1481,13 @@ function updateConditionTooltips(playerConditions){
         tooltipBoxes.push({
             x: globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 20+context.measureText(conditionLine).width,
             y: globalWorldData.worldY+210-18+conditionLineNum*24,
-            width: context.measureText(condition.name).width, height: 18,
-            type: "condition", condition: condition, spawnTime: 0,
+            width: context.measureText(cName).width, height: 18,
+            type: "condition", condition: c, spawnTime: 0,
         });
         if(i < playerConditions.length-1){
-            conditionLine += condition.name+", ";
+            conditionLine += cName+", ";
         } else {
-            conditionLine += condition.name;
+            conditionLine += cName;
         }
     }
 
@@ -1461,6 +1522,18 @@ function updateInventory(playerInventoryData,addItem = "none",addMenuTooltips = 
                 });
             }
         } else if(addItem !== "none"){
+            // First convert item name to item id if needed
+            if(typeof addItem !== "number"){
+                for(let i=0;i<itemData.length;i++){
+                    if(addItem === itemData[i].name){
+                        addItem = i;
+                        break;
+                    }
+                }
+            }
+            if(typeof addItem !== "number"){
+                addItem = 4;
+            }
             playerInventoryData.inventory[i] = addItem;
             globalItemsDiscovered[addItem] = true;
             tooltipBoxes.push({
@@ -1525,9 +1598,79 @@ function moveInDirection(location,degree,direction){
     }
 }
 
-function useItem(playerInventoryData,playerCombatData,playerConditions,inventoryIndex,particleSysX,particleSysY){
+// Maintain the correct order of conditions
+function sortPlayerConditions(playerConditions){
+    let compFn = function(a,b){
+        return a.conditionId - b.conditionId;
+    }
+    playerConditions.sort(compFn);
+}
+
+// Remove all conditions of a certain name and return the number of conditions removed
+function removeConditionsByName(playerConditions,conditionName){
+    let count = 0;
+    for(let i=playerConditions.length-1;i>=0;i--){
+        if(conditionData[playerConditions[i].id].name === conditionName){
+            playerConditions.splice(i,1);
+            count++;
+        }
+    }
+    return count;
+}
+
+// Adds condition
+function addCondition(playerConditions,conditionInfo){
+    let conditionFileInfo = conditionData[conditionInfo.id];
+    if(conditionFileInfo.unique){
+        removeConditionsByName(playerConditions,conditionFileInfo.name);
+    }
+    playerConditions.push(conditionInfo);
+}
+
+function updateHunger(playerStatData,playerConditions,hungerChange){
+    const hungerThreshold = playerStatData.hungerSoftcap - 40;
+    const severeHungerThreshold = playerStatData.hungerSoftcap - 20;
+    let status = "nothing";
+    
+    if(hungerChange>0){
+        // Increase hunger
+        playerStatData.hunger = Math.min(playerStatData.hungerSoftcap,playerStatData.hunger+hungerChange);
+        if(playerStatData.hunger > severeHungerThreshold){
+            removeConditionsByName(playerConditions,"Hunger");
+            addCondition(playerConditions, {id: 1});
+        } else if(playerStatData.hunger > hungerThreshold){
+            addCondition(playerConditions, {id: 2});
+            status = "hunger added";
+        }
+    } else {
+        // Decrease hunger
+        playerStatData.hunger = Math.max(0,playerStatData.hunger+hungerChange);
+        if(playerStatData.hunger < severeHungerThreshold){
+            removeConditionsByName(playerConditions,"Starvation");
+            if(playerStatData.hunger > hungerThreshold){
+                addCondition(playerConditions, {id: 2});
+            }
+        }
+        if(playerStatData.hunger < hungerThreshold){
+            removeConditionsByName(playerConditions,"Hunger");
+        }
+
+        for(let i=playerConditions.length-1;i>=0;i--){
+            if(playerConditions[i].name === "Hunger"){
+                playerConditions.splice(i,1);
+                updateConditionTooltips(playerConditions);
+            }
+        }
+    }
+    sortPlayerConditions(playerConditions);
+    updateConditionTooltips(playerConditions);
+    return status;
+}
+
+function useItem(playerInventoryData,playerStatData,playerConditions,inventoryIndex,particleSysX,particleSysY){
+    let playerCombatData = playerStatData.combatData;
     let item = playerInventoryData.inventory[inventoryIndex];
-    let info = itemInfo[item];
+    let info = itemData[item];
 
     if(info.name === "Dev Gun"){
         addIngameLogLine(`You feel really cool for having this don't you.`,180,100,70,1.7,performance.now());
@@ -1547,13 +1690,7 @@ function useItem(playerInventoryData,playerCombatData,playerConditions,inventory
             if(eff === "heal"){
                 playerCombatData.hp = Math.min(playerCombatData.maxHp,playerCombatData.hp+info.effects.healAmount);
             } else if (eff === "satiate"){
-                // TODO make a full hunger system
-                for(let i=playerConditions.length-1;i>=0;i--){
-                    if(playerConditions[i].name === "Hunger"){
-                        playerConditions.splice(i,1);
-                        updateConditionTooltips(playerConditions);
-                    }
-                }
+                updateHunger(playerStatData,playerConditions,-50);
             }
         }
 
@@ -1782,7 +1919,7 @@ function removeFruit(tree){
 }
 
 function drawItemIcon(itemId,x,y){
-    let info = itemInfo[itemId];
+    let info = itemData[itemId];
 
     if(info.imageInfo[0] === "tile"){
         drawTile(info.imageInfo[1],info.imageInfo[2],x-(info.imageInfo[3]-1)*16 + info.imageInfo[3]*2 + 4,y-(info.imageInfo[3]-1)*16 + info.imageInfo[3]*2 + 4,32,info.imageInfo[3]);
@@ -1958,7 +2095,7 @@ function updateModifiers(playerStatData){
             }
         } else {
             multiplicativeModifiers.push(mod);
-        }
+        } 
     }
     for(let i=0;i<multiplicativeModifiers.length;i++){
         // Apply additive stat multipliers and defer multiplicative ones
@@ -1970,6 +2107,26 @@ function updateModifiers(playerStatData){
         }
     }
 };
+
+// Specfically updates the tooltips of the abilities on the status bar, not in the ability menu
+function updateAbilityTooltips(playerAbilityData){
+    for(let i = tooltipBoxes.length-1;i>=0;i--){
+        if(tooltipBoxes[i].type === "status bar ability"){
+            tooltipBoxes.splice(i,1);
+        }
+    }
+
+    for(let i=0;i<playerAbilityData.abilitySlots;i++){
+        if(playerAbilityData.equippedAbilities[i] !== null){
+            tooltipBoxes.push({
+                x: globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 28+50*i,
+                y: globalWorldData.worldY+535,
+                width: 45, height: 45,
+                type: "status bar ability", ability: playerAbilityData.equippedAbilities[i], abilityIndex: i, spawnTime: 0,
+            });
+        }
+    }
+}
 
 function unequipAbility(playerAbilityData,playerStatData,slotIndex,abilityIndex){
     playerAbilityData.equippedAbilities[slotIndex] = null;
@@ -2086,6 +2243,7 @@ function Game(){
         specialModifiers: [],
 
         power: 0, powerSoftcap: 5,
+        hunger: 57, hungerSoftcap: 100, 
         autoDysymboliaInterval: 40,
 
         combatData: {
@@ -2174,7 +2332,8 @@ function Game(){
     let playerTheoryData = [];
 
     let playerConditions = [
-        {
+        /*{
+            id: 0,
             name: "Dysymbolia",
             jpName: "ディシンボリア",
             //type: "Curse",
@@ -2182,14 +2341,16 @@ function Game(){
             golden: false,
             desc: "Character sees visions of a distant world. Next in $timeUntilDysymbolia$, or when ???.",
             particleSystem: null, // Becomes a particle system when one needs to be drawn behind it
+            unique: true,
         },
         {
             name: "Hunger",
             jpName: "空腹",
             //type: "Standard condition",
             color: "#d66b00",
-            desc: "Character is hungry. Healing from most non-food sources is reduced."
-        }
+            desc: "Character is hungry. Healing from most non-food sources is reduced.",
+            unique: true,
+        }*/
     ];
 
     let menuScene = null;
@@ -2224,19 +2385,25 @@ function Game(){
     
         // If a second went by, update everything that needs to be updated by the second
         if(dialogue === null && menuScene === null && combat === null && (newTime > globalWorldData.currentGameClock || (globalWorldData.currentGameClock === 1439 && newTime !== 1439))){
+            if(newTime % 9 === 0){
+                if(updateHunger(playerStatData,playerConditions,1) === "hunger added" && globalPlayerStatisticData.sceneCompletion["tutorial hunger scene"]===0){
+                    dialogue = initializeDialogue("scenes","tutorial hunger scene",timeStamp);
+                }
+            } 
             if(timeUntilDysymbolia > 0){
                 timeUntilDysymbolia-=1;
+            } else if(dialogue === null){
+                // Begin dysymbolia dialogue!
+                if (playerAbilityData.acquiringAbility !== null){
+                    dialogue = initializeDialogue("abilityAcquisition",abilityFileData[playerAbilityData.acquiringAbility].name,timeStamp);
+                } else if (!globalPlayerStatisticData.finishedFirstRandomDysymboliaScene){
+                    dialogue = initializeDialogue("randomDysymbolia","first",timeStamp);
+                    globalPlayerStatisticData.finishedFirstRandomDysymboliaScene = true;
+                } else {
+                    dialogue = initializeDialogue("randomDysymbolia","auto",timeStamp);
+                }
             }
     
-            // Begin dysymbolia dialogue!
-            else if (playerAbilityData.acquiringAbility !== null){
-                dialogue = initializeDialogue("abilityAcquisition",abilityFileData[playerAbilityData.acquiringAbility].name,timeStamp);
-            } else if (!globalPlayerStatisticData.finishedFirstRandomDysymboliaScene){
-                dialogue = initializeDialogue("randomDysymbolia","first",timeStamp);
-                globalPlayerStatisticData.finishedFirstRandomDysymboliaScene = true;
-            } else {
-                dialogue = initializeDialogue("randomDysymbolia","auto",timeStamp);
-            }
             globalWorldData.currentGameClock = newTime;
         }
     
@@ -2292,7 +2459,8 @@ function Game(){
             let poisonDamageTaken = 0;
             for(let i=0;i<playerConditions.length;i++){
                 let condition = playerConditions[i];
-                if(condition.name === "Lizard Toxin"){
+                let conditionFileInfo = conditionData[condition.id];
+                if(conditionFileInfo.name === "Lizard Toxin"){
                     poisonDamageTaken++;
                     condition.turnsLeft--;
                     if(condition.turnsLeft<=0){
@@ -2312,6 +2480,7 @@ function Game(){
     
             if(isUpdateNecessary){
                 playerConditions = newConditions;
+                sortPlayerConditions(playerConditions);
                 updateConditionTooltips(playerConditions);
             }
         }
@@ -2347,12 +2516,11 @@ function Game(){
     
             if(action.condition !== undefined){
                 let newCondition = {
-                    name: action.condition.name,
-                    color: action.condition.color,
-                    desc: action.condition.desc,
+                    id: action.condition.id,
                     turnsLeft: action.condition.minDuration + Math.floor(Math.random()*(action.condition.maxDuration+1-action.condition.minDuration)),
                 }
-                playerConditions.push(newCondition);
+                addCondition(playerConditions,newCondition);
+                sortPlayerConditions(playerConditions);
                 updateConditionTooltips(playerConditions);
             }
     
@@ -2614,7 +2782,7 @@ function Game(){
                         addIngameLogLine("Mari took a fruit from the tree.",130,100,70,2,timeStamp);
                     }
                     if(dialogue.lineInfo[dialogue.currentLine].takeBerries !== undefined){
-                        updateInventory(playerInventoryData, 1);
+                        updateInventory(playerInventoryData, lev.entities[dialogue.entityIndex].berries + " Berries");
                         lev.entities[dialogue.entityIndex].berries = null;
                         addIngameLogLine("Mari collected the berries.",130,100,70,2,timeStamp);
                     }
@@ -2704,7 +2872,7 @@ function Game(){
         }
     
         const updateWorldScreen = function(){
-            if(globalInputData.mouseDown && currentTooltip && tooltipBoxes[currentTooltip.index].type === "condition" && tooltipBoxes[currentTooltip.index].condition.name === "Dysymbolia" && playerAbilityData.canManuallyTriggerDysymbolia){
+            if(globalInputData.mouseDown && currentTooltip && tooltipBoxes[currentTooltip.index].type === "condition" && tooltipBoxes[currentTooltip.index].condition.id === 0 && playerAbilityData.canManuallyTriggerDysymbolia){
                 if(timeUntilDysymbolia > 0){
                     timeUntilDysymbolia = 0;
                     globalPlayerStatisticData.totalDysymboliaManualTriggers++;
@@ -2947,7 +3115,7 @@ function Game(){
                 if(updateBasicAttackAnimation(enemy,playerWorldData,timeElapsed) === "finished"){
                     combat.currentEnemyAction = null;
                     if(globalPlayerStatisticData.sceneCompletion["tutorial dungeon scene 2"]===0){
-                        dialogue = initializeDialogue("scenes","tutorial dungeon scene 2",timeStamp)
+                        dialogue = initializeDialogue("scenes","tutorial dungeon scene 2",timeStamp);
                     }
                 } else if(timeElapsed > 600 && !combat.enemyActionEffectApplied){
                     applyEnemyActionEffect();
@@ -3160,7 +3328,7 @@ function Game(){
                         timeUntilDysymbolia = playerStatData.autoDysymboliaInterval;
                         break;
                     case '$additem':
-                        updateInventory(playerInventoryData, splitCommand[1]);
+                        updateInventory(playerInventoryData, parseInt(splitCommand[1]));
                         break;
                     case '$master':
                         playerAbilityData.canManuallyTriggerDysymbolia = true;
@@ -3286,6 +3454,12 @@ function Game(){
                     drawTile(type, src, globalWorldData.worldX+x*globalWorldData.sizeMod-camX*globalWorldData.sizeMod, globalWorldData.worldY+y*globalWorldData.sizeMod-camY*globalWorldData.sizeMod,32,globalWorldData.sizeMod);
                 }
             }
+            const cameraSpecialTile = function(image,src,x,y){
+                if(x-camX > -33 && x-camX < w && y-camY > -33 && y-camY < h){
+                    //drawTile(type, src, globalWorldData.worldX+x*globalWorldData.sizeMod-camX*globalWorldData.sizeMod, globalWorldData.worldY+y*globalWorldData.sizeMod-camY*globalWorldData.sizeMod,32,globalWorldData.sizeMod);
+                    context.drawImage(image, src[0], src[1], 32, 32, globalWorldData.worldX+x*globalWorldData.sizeMod-camX*globalWorldData.sizeMod, globalWorldData.worldY+y*globalWorldData.sizeMod-camY*globalWorldData.sizeMod, 32*globalWorldData.sizeMod, 32*globalWorldData.sizeMod);
+                }
+            }
             const cameraCharacter = function(character, src, x, y){
                 if(x-camX > -33 && x-camX < w && y-camY > -33 && y-camY < h){
                     drawCharacter(character, src, globalWorldData.worldX+x*globalWorldData.sizeMod-camX*globalWorldData.sizeMod, globalWorldData.worldY+y*globalWorldData.sizeMod-camY*globalWorldData.sizeMod,globalWorldData.sizeMod);
@@ -3392,6 +3566,8 @@ function Game(){
                     cameraTile(tilesetNum,[bitrate,bitrate*3],x,y,camX,camY);     
                 } else if (bush.berries === "Red"){
                     cameraTile(tilesetNum,[0,bitrate*3],x,y,camX,camY);
+                } else if (bush.berries === "Blue"){
+                    cameraSpecialTile(miscImages.bbush,[0,0],x,y,camX,camY);
                 }
             }
     
@@ -4346,36 +4522,18 @@ function Game(){
             context.fillText("Abilities", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, globalWorldData.worldY+505);
     
             // Draw ability bar
-            for(let i=0;i<playerAbilityData.abilitySlots;i++){
-                if(playerAbilityData.equippedAbilities[i] !== null){
-                    context.drawImage(abilityIcons[ playerAbilityData.list[playerAbilityData.equippedAbilities[i]].index ],globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 28+50*i,globalWorldData.worldY+535,45,45);
-                }
-    
-                context.lineWidth = 2;
-                context.strokeStyle = 'hsla(0, 30%, 60%, 1)';
-                context.beginPath();
-                context.roundRect(globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 28+50*i, globalWorldData.worldY+535, 45, 45, 3);
-                context.stroke();
-            }
-    
-            /*context.font = '15px zenMaruRegular';
-            context.fillText("No learned abilities", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, globalWorldData.worldY+520);*/
-    
             context.font = '20px zenMaruMedium';
             context.fillText("Inventory", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, globalWorldData.worldY+660);
     
-            // Draw inventory hotbar
-            for(let i=0;i<5;i++){
-                context.lineWidth = 2;
-                context.strokeStyle = 'hsla(270, 30%, 60%, 1)';
-                context.beginPath();
-                context.roundRect(globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 28+50*i, globalWorldData.worldY+690, 45, 45, 3);
-                context.stroke();
-    
-                if(playerInventoryData.inventory[i] !== "none"){
-                    drawItemIcon(playerInventoryData.inventory[i],globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 28+50*i,globalWorldData.worldY+690);
+            // Draw ui elements
+           for(let i=0;i<globalStatusBarUiElements.length;i++){
+                let uiElement = globalStatusBarUiElements[i];
+                if(uiElement.type === "inventory slot"){
+                    drawInventorySlot(uiElement,playerInventoryData);
+                } else if(uiElement.type === "ability slot"){
+                    drawAbilitySlot(uiElement,playerAbilityData);
                 }
-            }
+           }
     
             // Make underlines
             context.fillStyle = 'hsl(0, 100%, 100%, 40%)';
@@ -4420,10 +4578,15 @@ function Game(){
             context.fillText("Conditions: ", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 20, globalWorldData.worldY+210);
     
             for(let i in playerConditions){
-                const condition = playerConditions[i];
+                const c = playerConditions[i];
+                const cInfo = conditionData[c.id];
+                let cColor = c.color;
+                if(cColor === undefined){
+                    cColor = cInfo.color;
+                }
                 context.font = '18px zenMaruMedium';
     
-                if( (conditionLine + condition.name).length > "Conditions: Dysymbolia, Hunger, aaa".length){
+                if( (conditionLine + cInfo.name).length > "Conditions: Dysymbolia, Hunger, aaa".length){
                     conditionLine = "";
                     conditionLineNum++;
                 }
@@ -4432,18 +4595,18 @@ function Game(){
                 let conditionY = globalWorldData.worldY+210+24*conditionLineNum;
     
                 // Handle special drawing for the dysymbolia condition
-                if(condition.name === "Dysymbolia" && timeUntilDysymbolia < playerStatData.autoDysymboliaInterval/2){
+                if(cInfo.name === "Dysymbolia" && timeUntilDysymbolia < playerStatData.autoDysymboliaInterval/2){
                     context.font = `18px zenMaruBlack`;
-                    if(condition.particleSystem === null){
-                        condition.particleSystem = createParticleSystem({
-                            x: [conditionX,conditionX+context.measureText(condition.name).width], y:[conditionY,conditionY], hue: 0, saturation: 0, lightness: 100, startingAlpha: 0.005,
+                    if(c.particleSystem === null){
+                        c.particleSystem = createParticleSystem({
+                            x: [conditionX,conditionX+context.measureText(cInfo.name).width], y:[conditionY,conditionY], hue: 0, saturation: 0, lightness: 100, startingAlpha: 0.005,
                             particlesPerSec: 50, drawParticles: drawParticlesTypeZero, newParticle: newParticleTypeTwo,
                             particleSize: 5, particleLifespan: 450, mod: 1.2, shift: 1.3, particleSpeed: 120, gravity: -300,
                             sourceType: "line", specialDrawLocation: true,
                         });
-                        particleSystems.push(condition.particleSystem);
+                        particleSystems.push(c.particleSystem);
                     }
-                    let ps = condition.particleSystem;
+                    let ps = c.particleSystem;
                     if(timeUntilDysymbolia > -1){
                         let advancement = (playerStatData.autoDysymboliaInterval/2 - timeUntilDysymbolia)/(playerStatData.autoDysymboliaInterval);
                         ps.startingAlpha = advancement/1.5;
@@ -4453,7 +4616,7 @@ function Game(){
                         ps.particleSpeed = 60 + 200*advancement;
                         ps.lightness = 100;
     
-                        condition.color = `hsl(0,0%,${timeUntilDysymbolia*(playerStatData.autoDysymboliaInterval/18)}%)`;
+                        c.color = `hsl(0,0%,${timeUntilDysymbolia*(playerStatData.autoDysymboliaInterval/18)}%)`;
                     } else {
                         let advancement = 1;
                         ps.startingAlpha = 1;
@@ -4461,26 +4624,25 @@ function Game(){
                         ps.particlesPerSec = 40 + 50*advancement;
                         ps.particleSize = 5 + 4*advancement;
                         ps.particleSpeed = 60 + 200*advancement;
-    
                         ps.lightness = 0;
     
-                        if(condition.golden){
+                        if(c.golden){
                             ps.hue = 280;
                             ps.saturation = 100;
                             ps.lightness = 40;
                         } else {
-                            condition.color = `hsl(0,0%,100%)`;
+                            c.color = `hsl(0,0%,100%)`;
                         }
                     }
-                    condition.particleSystem.drawParticles(performance.now());
+                    c.particleSystem.drawParticles(performance.now());
                 }
     
-                context.fillStyle = condition.color;
+                context.fillStyle = cColor;
                 if(i < playerConditions.length-1){
-                    context.fillText(condition.name+", ", conditionX, conditionY);
-                    conditionLine += condition.name+", ";
+                    context.fillText(cInfo.name+", ", conditionX, conditionY);
+                    conditionLine += cInfo.name+", ";
                 } else {
-                    context.fillText(condition.name, conditionX, conditionY);
+                    context.fillText(cInfo.name, conditionX, conditionY);
                 }
             }
     
@@ -4908,6 +5070,7 @@ function Game(){
             playerConditions: playerConditions,
 
             globalPlayerStatisticData: globalPlayerStatisticData,
+            globalItemsDiscovered: globalItemsDiscovered,
     
             clock: globalWorldData.currentGameClock,
             gameClockOfLastPause: globalWorldData.gameClockOfLastPause,
@@ -4953,6 +5116,7 @@ function Game(){
             playerConditions = save.playerConditions;
 
             globalPlayerStatisticData = save.globalPlayerStatisticData;
+            globalItemsDiscovered = save.globalItemsDiscovered,
     
             globalWorldData.currentGameClock = save.clock;
             globalWorldData.gameClockOfLastPause = save.gameClockOfLastPause;
@@ -4977,7 +5141,7 @@ function Game(){
             // Particle systems have to be made again or nullified
             for(let i=0;i<playerConditions.length;i++){
                 let condition = playerConditions[i];
-                if(condition.name === "Dysymbolia"){
+                if(conditionData[condition.id].name === "Dysymbolia"){
                     condition.particleSystem = null;
                 }
             }
@@ -5262,10 +5426,6 @@ function Game(){
             sys.particles = newArray;
         }
 
-        if(frameCount%(fps*2) === 0){
-            worstParticleSystem.createNewParticles = !worstParticleSystem.createNewParticles;
-        }
-
         // ******************************
         // Updating logic finished, next is the drawing phase
         // ******************************
@@ -5352,7 +5512,6 @@ function Game(){
         if(isLoggingFrame){
             let statement = //"Time Stamp: " +timeStamp+ "\n" + "Scene: " +name+ "\n"+ "Number of tooltips: " +tooltipBoxes.length+ "\n";
 `Time Stamp: ${timeStamp}
-Scene: ${name}
 Number of tooltips: ${tooltipBoxes.length}
 Player Src: ${playerWorldData.src}
 `;
@@ -5437,11 +5596,46 @@ Player Src: ${playerWorldData.src}
     }
 
     // Initialize!
-    initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityData);
+    initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityData,playerStatData,playerConditions);
     dialogue = initializeDialogue("scenes","opening scene",performance.now());
     updateConditionTooltips(playerConditions);
     updateInventory(playerInventoryData);
     globalInputData.key2Clicked = globalInputData.key1Clicked = globalInputData.key3Clicked = globalInputData.doubleClicked = false;
+
+    /******** add Ui elements *********/ 
+
+    // inventory hotbar
+    for(let i=0;i<5;i++){
+        let uiElement = createUiElement(
+            "inventory hotbar slot " + i,
+            "inventory slot",
+            globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 28+50*i,
+            globalWorldData.worldY+690,
+            45,
+            45,
+            [],
+            {type: "item", spawnTime: 0}
+        );
+        uiElement.slotNum = i;
+        globalStatusBarUiElements.push(uiElement);
+    }
+
+    // ability hotbar
+    for(let i=0;i<5;i++){
+        let uiElement = createUiElement(
+            "ability hotbar slot " + i,
+            "ability slot",
+            globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 28+50*i,
+            globalWorldData.worldY+535,
+            45,
+            45,
+            [],
+            {type: "ability", spawnTime: 0}
+        );
+        uiElement.slotNum = i;
+        globalStatusBarUiElements.push(uiElement);
+    }
+    
 }
 
 // Loop that waits for assets and starts game
@@ -5539,6 +5733,10 @@ function init(){
     miscImages.blueberry.src = `/assets/Sprout Lands 32/bberry.png`
     miscImages.yellowberry = new Image();
     miscImages.yellowberry.src = `/assets/Sprout Lands 32/yberry.png`
+    miscImages.bbush = new Image();
+    miscImages.bbush.src = `/assets/Sprout Lands 32/bbush.png`
+    miscImages.ybush = new Image();
+    miscImages.ybush.src = `/assets/Sprout Lands 32/ybush.png`
 
     // Get a reference to the canvas
     canvas = document.getElementById('canvas');

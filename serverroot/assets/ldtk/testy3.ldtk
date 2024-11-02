@@ -1950,7 +1950,10 @@
 							"height": 32,
 							"defUid": 101,
 							"px": [1344,1248],
-							"fieldInstances": [{ "__identifier": "berries", "__type": "LocalEnum.Berries", "__value": null, "__tile": null, "defUid": 106, "realEditorValues": [] }],
+							"fieldInstances": [{ "__identifier": "berries", "__type": "LocalEnum.Berries", "__value": "Blue", "__tile": null, "defUid": 106, "realEditorValues": [{
+								"id": "V_String",
+								"params": ["Blue"]
+							}] }],
 							"__worldX": 1344,
 							"__worldY": 1248
 						},
@@ -2062,28 +2065,25 @@
 							"height": 32,
 							"defUid": 101,
 							"px": [1440,1248],
-							"fieldInstances": [{ "__identifier": "berries", "__type": "LocalEnum.Berries", "__value": null, "__tile": null, "defUid": 106, "realEditorValues": [] }],
+							"fieldInstances": [{ "__identifier": "berries", "__type": "LocalEnum.Berries", "__value": null, "__tile": null, "defUid": 106, "realEditorValues": [null] }],
 							"__worldX": 1440,
 							"__worldY": 1248
 						},
 						{
 							"__identifier": "Witch",
-							"__grid": [5,7],
+							"__grid": [20,41],
 							"__pivot": [0,0],
 							"__tags": ["location"],
 							"__tile": null,
 							"__smartColor": "#FF00DD",
-							"iid": "09bfd7c0-fec0-11ee-b705-e3fb7df8fa2f",
+							"iid": "993fbcb0-73f0-11ef-94a7-b3e5c5a62ae4",
 							"width": 32,
 							"height": 32,
 							"defUid": 10,
-							"px": [160,224],
-							"fieldInstances": [{ "__identifier": "visible", "__type": "Bool", "__value": false, "__tile": null, "defUid": 104, "realEditorValues": [{
-								"id": "V_Bool",
-								"params": [ false ]
-							}] }],
-							"__worldX": 160,
-							"__worldY": 224
+							"px": [640,1312],
+							"fieldInstances": [{ "__identifier": "visible", "__type": "Bool", "__value": false, "__tile": null, "defUid": 104, "realEditorValues": [] }],
+							"__worldX": 640,
+							"__worldY": 1312
 						}
 					]
 				},

@@ -33,6 +33,26 @@
                     }
                 ]
             },
+            "tutorial hunger scene": {
+                "textLines": [
+                    "*growl........*",
+                    "My お腹..."
+                ],
+                "lineInfo": [
+                    {
+                        "faceNum": 9,
+                        "textSpeed": 18
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 2,
+                        "dysymbolia": ["腹",["stomach","naka","onaka","hara"],"#737373","お腹"],
+                        "particleSystem": {
+                            "templateName": "water"
+                        }
+                    }
+                ]
+            },
             "tutorial cloud scene": {
                 "textLines": [
                     "What is this...",
@@ -48,9 +68,7 @@
                         "faceNum": 4,
                         "dysymbolia": ["雲",["cloud","clouds","kumo"],"#737373","雲"],
                         "particleSystem": {
-                                "hue": [0,0], "saturation": [0,0], "lightness": [100,85],
-                                "particlesPerSec": 30, "drawParticles": 0, "newParticle": 1,
-                                "particleSize": 8, "particleLifespan": 700
+                            "templateName": "whitenfluffy"
                         }
                     }
                 ]
@@ -70,17 +88,15 @@
                     {
                         "face": "player",
                         "faceNum": 9,
-                        "textSpeed": 12
+                        "textSpeed": 18
                     },
                     {
                         "face": "player",
-                        "faceNum": 2,
-                        "textSpeed": 30
+                        "faceNum": 2
                     },
                     {
                         "face": "player",
                         "faceNum": 5,
-                        "textSpeed": 30,
                         "dysymbolia": ["一",["one"],"white","一つ"],
                         "particleSystem": {
                             "hue": [0], "saturation": [30], "lightness": [80],
@@ -617,8 +633,55 @@
                         "face": "player",
                         "faceNum": 14,
                         "abilityAcquisition": true,
-                        "normalTrials": 4,
+                        "normalTrials": 3,
                         "specialTrials": 2,
+                        "particleSystem": {
+                            "hue": [0], "saturation": [30], "lightness": [80],
+                            "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 4, "particleLifespan": 1400, "particleSpeed": 20
+                        },
+                        "specialParticleSystem": {
+                            "hue": [280], "saturation": [100], "lightness": [70],
+                            "particlesPerSec": 30, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 5, "particleLifespan": 700, "particleSpeed": 40
+                        }
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 9,
+                        "playerResponses": ["Yes","No"],
+                        "selectedResponse": 0,
+                        "responseEffects": ["jump to 1","end"]
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 1
+                    }
+                ]
+            },
+            "Dysymbolia-induced Growth": {
+                "textLines": [
+                    "I feel something familiar about these berries I've been finding. Somehow I think using my power on the bushes might be worth a try at least.",
+                    "Without some focus and practice though it isn't going to work out.",
+                    "",
+                    "Ugh, I didn't quite get it this time. Should I try again?",
+                    "Maybe I should find a bush to try this out on."
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 2
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 2
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 14,
+                        "abilityAcquisition": true,
+                        "normalTrials": 3,
+                        "specialTrials": 3,
                         "particleSystem": {
                             "hue": [0], "saturation": [30], "lightness": [80],
                             "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
@@ -869,7 +932,7 @@
         {
             "symbol": "寸",
             "keyword": "Measurement",
-            "story": "Use two lines (X axis and Y axis) to measure the dot (on the graph)."
+            "story": "Basic character. Use two lines (X axis and Y axis) to measure the dot (on the graph)."
         },
         {
             "symbol": "銀",
@@ -885,6 +948,31 @@
             "symbol": "体",
             "keyword": "Body",
             "story": "Body is the origin of a human, just like a book is the origin of knowledge."
+        },
+        {
+            "symbol": "日",
+            "keyword": "Sun",
+            "story": "You can see the sun shining through this window."
+        },
+        {
+            "symbol": "早",
+            "keyword": "Sun",
+            "story": "The sun rises early, well before ten."
+        },
+        {
+            "symbol": "化",
+            "keyword": "Change",
+            "story": "Any change of state, like a change from standing up to sitting down."
+        },
+        {
+            "symbol": "花",
+            "keyword": "Flower",
+            "story": "Radicals: grass + change. The flower is the essence of change, changing throughout its growth and with the seasons."
+        },
+        {
+            "symbol": "生",
+            "keyword": "Life",
+            "story": "Basic character. I see it as a pictograph of a sprout growing up from the ground, symbolizing fresh life."
         }
     ],
     "theory": [
@@ -1259,6 +1347,8 @@
         },
         {
             "name": "Dysymbolia-induced Growth",
+            "jpName":"ディシンボリア超生長",
+            "jpNameWithSeperators":"ディシンボリア+超+生長",
             "description": " Only seems to work on some plants and has unusual results, not like natural growth. But it may be helpful? \n \n -Channel 4-, then attempt to induce growth in a plant. A better channel result will lead to a greater likelihood of getting a rarer or more desirable growth result.",
             "types": ["active", "dysymbolia"],
             "activeEffects": [
@@ -1284,7 +1374,7 @@
             ],
             "maxLevel": 4,
             "acquisitionPower": 10,
-            "specialKanji": [],
+            "specialKanji": ["化","花","生"],
             "levelingInfo": {}
         }
     ],
@@ -1318,16 +1408,8 @@
             }
         },
         {
-            "name": "Dev Gun",
-            "desc": "Reality bends to your will.",
-            "type": "Special",
-            "color": "blue",
-            "subtypes": ["dev"],
-            "imageInfo": ["gun"]
-        },
-        {
             "name": "Blue Berries",
-            "desc": "Not to be confused with blueberries. Halves the damage of the next hit you take.",
+            "desc": "Not to be confused with blueberries. Halves the damage of the next hit you take, to a maximum of 20 damage prevented.",
             "type": "Consumable",
             "color": "blue",
             "subtypes": ["food","fruit"],
@@ -1352,6 +1434,44 @@
                 "healAmount": 10,
                 "satiation": "small"
             }
+        },
+        {
+            "name": "Some Gun",
+            "desc": "The game messed up and tried to give you an invalid item so take this gun instead.",
+            "type": "Special",
+            "color": "blue",
+            "subtypes": ["dev"],
+            "imageInfo": ["gun"]
+        }
+    ],
+    "conditions": [
+        {
+            "name": "Dysymbolia",
+            "jpName": "ディシンボリア",
+            "color": "white",
+            "desc": "Character sees visions of a distant world. Next in $timeUntilDysymbolia$, or when ???.",
+            "unique": true
+        },
+        {
+            "name": "Starvation",
+            "jpName": "空腹（大）",
+            "color": "#ad3a00",
+            "desc": "Character is very, very hungry. Healing from most non-food sources is greatly reduced and is taking passive damage.",
+            "unique": true
+        },
+        {
+            "name": "Hunger",
+            "jpName": "空腹",
+            "color": "#d66b00",
+            "desc": "Character is hungry. Healing from most non-food sources is reduced.",
+            "unique": true
+        },
+        
+        {
+            "name": "Lizard Toxin",
+            "color": "#4f0",
+            "desc": "Character poisoned with a small lizards' toxin. It doesn't make you feel *too* sick and wears off quickly but care still advised. Losing a small amount of HP and brings character closer to hunger. $turnsLeft$ turns left.",
+            "unique": false
         }
     ],
     "enemies": [
@@ -1371,11 +1491,9 @@
                     "name": "toxic tongue",
                     "power": 2,
                     "condition": {
-                        "name": "Lizard Toxin",
-                        "color": "#4f0",
-                        "desc": "Poisoned with a small lizards' toxin. It doesn't make you feel *too* sick and wears off quickly although you should still be careful. Losing a small amount of HP and brings you closer to hunger. $turnsLeft$ turns left.",
-                        "minDuration": 2,
-                        "maxDuration": 4
+                       "id": 3,
+                       "minDuration": 2,
+                       "maxDuration": 4
                     },
                     "animation": 0,
                     "text": "Green Lizard used its toxic tongue dealing {damage} damage and poisoning Mari!"

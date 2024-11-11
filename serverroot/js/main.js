@@ -16,6 +16,18 @@ var globalWorldData = {
     worldY: 20,
     speedMode: false,
     chatting: false,
+    menuScene: null,
+    sidebar: "status",
+    menuData: {
+        loadStatement: null,
+        selectedAbility: 0,
+        selectedKanji: 0,
+        selectedWriteup: 0,
+        isReadingWriteup: false,
+
+        // array to change the equipped abilities to after menu is closed
+        //newEquippedAbilities: [null,null,null,null,null,null,null,null,null,null],
+    },
 
     // Counts the minutes elapsed from 0:00 in the day, for now it goes up 1 every second
     currentGameClock: 600,
@@ -134,6 +146,7 @@ var dialogueFileData = {
     world: {},
     scenes: {},
     randomDysymbolia: {},
+    death: {}
 };
 
 var kanjiFileData = [];
@@ -164,6 +177,7 @@ function processGameJsonData(data) {
     dialogueFileData.world = dialogueData.worldDialogue;
     dialogueFileData.randomDysymbolia = dialogueData.randomDysymbolia;
     dialogueFileData.abilityAcquisition = dialogueData.abilityAcquisition;
+    dialogueFileData.death = dialogueData.death;
     dialogueFileData.gladius = dialogueData.characterDialogue.Gladius;
     dialogueFileData.andro = dialogueData.characterDialogue.Andro;
     dialogueFileData.lizard = dialogueData.characterDialogue.Lizard;
@@ -196,6 +210,11 @@ function processGameJsonData(data) {
 // Levels isnt the most amazing word for it technically but it is the terminology that ldtk uses so thats the terms we are using
 var levels = [];
 
+// Clouds
+var clouds = [];
+var cloudXOffset = 0;
+var cloudYOffset = 0;
+
 // Information on the connections between levels. currently an array of connections that is to be iterated through when looking for the other side of a connection.
 var connections = [];
 
@@ -206,7 +225,7 @@ function processLevelData(data) {
     const levelsData = worldData.levels;
 
     // Takes the length of the layers and takes off 2 for the entities and collisions layer
-    const numTileLayers = worldData.defs.layers.length -2;
+    const numTileLayers = worldData.defs.layers.length -3;
 
     // Load in tileset information
     for (let i=0;i<numTileLayers;i++){
@@ -238,16 +257,22 @@ function processLevelData(data) {
         };
         const levelData = levelsData[i];
         const entityLayerData = levelData.layerInstances[0];
-        const collisionLayerData = levelData.layerInstances[levelData.layerInstances.length-1];
+        const collisionLayerData = levelData.layerInstances[levelData.layerInstances.length-2];
+        const dungeonRoomsLayerData = levelData.layerInstances[levelData.layerInstances.length-1];
 
         levels[i].collisions = collisionLayerData.intGridCsv;
         levels[i].iid = levelData.iid;
         levels[i].identifier = levelData.identifier;
         levels[i].neighbours = levelData.__neighbours;
+        
 
         levels[i].gridWidth = collisionLayerData.__cWid;
         levels[i].gridHeight = collisionLayerData.__cHei;
         levels[i].lightSource = levelData.fieldInstances[0].__value;
+        levels[i].levelType = levelData.fieldInstances[1].__value;
+        if(levels[i].levelType === "dungeon"){
+            levels[i].roomsGrid = dungeonRoomsLayerData.intGridCsv;
+        }
 
         for(let j=0;j<numTileLayers;j++){
             let tileLayerData = levelData.layerInstances[j+1];
@@ -388,7 +413,7 @@ zenMaruBold.load().then(function(font){document.fonts.add(font);});
 var zenMaruBlack = new FontFace('zenMaruBlack', 'url(assets/ZenMaruGothic-Black.ttf)');
 zenMaruBlack.load().then(function(font){document.fonts.add(font);});
 
-const characterList = ["witch","andro","gladius","lizard"];
+const characterList = ["witch","andro","gladius","lizard","hiddenone_spider"];
 
 var characterSpritesheets={},characterFaces={},characterBitrates={};
 const faceBitrate = 96;
@@ -653,6 +678,8 @@ const wrapText = function(ctx, text, y, maxWidth, lineHeight, japanese = false) 
     return lineArray;
 }
 
+let berryGachaData = [];
+
 /********************************** UI ELEMENT CODE *************************************/
 
 // This section of the code was made in post after struggling with a UI system that didn't end up scaling up
@@ -667,6 +694,8 @@ const wrapText = function(ctx, text, y, maxWidth, lineHeight, japanese = false) 
 
 // UI objects will be stored in global arrays:
 let globalStatusBarUiElements = [];
+
+let globalMenuTabUiElements = [];
 
 // For all micellanous elements
 let globalUIElements = [];
@@ -712,37 +741,54 @@ function createUiElement(name,type,x,y,width,height, particleSystems = [], toolt
         isVisible: true
     };
 
+    newUiElement.tooltip.x = x;
+    newUiElement.tooltip.y = y;
+    newUiElement.tooltip.width = width;
+    newUiElement.tooltip.height = height;
+
     return newUiElement;
 }
 
 function drawInventorySlot(uiElement,playerInventoryData){
     context.lineWidth = 2;
+    context.fillStyle = 'black';
     context.strokeStyle = 'hsla(270, 30%, 60%, 1)';
     context.beginPath();
     context.roundRect(uiElement.x, uiElement.y, uiElement.width, uiElement.height, 3);
+    context.fill();
     context.stroke();
 
     if(playerInventoryData.inventory[uiElement.slotNum] !== "none"){
-        drawItemIcon(playerInventoryData.inventory[uiElement.slotNum],uiElement.x,uiElement.y);
+        if(uiElement.width !== 45){
+            context.save();
+            context.translate(uiElement.x,uiElement.y);
+            context.scale(uiElement.width/42,uiElement.height/42);
+            drawItemIcon(playerInventoryData.inventory[uiElement.slotNum],-1,-1);
+            context.restore();
+        } else {
+            drawItemIcon(playerInventoryData.inventory[uiElement.slotNum],uiElement.x,uiElement.y);
+        }
     }
 }
 
 function drawAbilitySlot(uiElement,playerAbilityData){
-    if(playerAbilityData.equippedAbilities[uiElement.slotNum] !== null){
-        context.drawImage(abilityIcons[ playerAbilityData.list[playerAbilityData.equippedAbilities[uiElement.slotNum]].index ],uiElement.x,uiElement.y,45,45);
-    }
-
     context.lineWidth = 2;
+    context.fillStyle = 'black';
     context.strokeStyle = 'hsla(0, 30%, 60%, 1)';
     context.beginPath();
     context.roundRect(uiElement.x, uiElement.y, uiElement.width, uiElement.height, 3);
+    context.fill();
     context.stroke();
+
+    if(playerAbilityData.equippedAbilities[uiElement.slotNum] !== null){
+        context.drawImage(abilityIcons[ playerAbilityData.list[playerAbilityData.equippedAbilities[uiElement.slotNum]].index ],uiElement.x+1,uiElement.y+1,uiElement.width-2,uiElement.height-2);
+    }
 }
 
-// Draws the current tooltip
-function drawTooltip() {
+// Draws a tooltip
+function drawTooltip(tooltip) {
     let draw = function(titleColor,titleText,bodyText,jp = false,titleShadow=0,shadowColor = "hsl(0, 15%, 0%, 70%)"){
-        let wrappedText = wrapText(context, bodyText, globalInputData.mouseY+74, 350, 16, jp);
+        let wrappedText = wrapText(context, bodyText, globalInputData.mouseY+74, 330, 16, jp);
 
         const boxX = globalInputData.mouseX+12;
         const boxY = globalInputData.mouseY+12;
@@ -781,13 +827,12 @@ function drawTooltip() {
         });
     }
 
-    let tooltipBox = tooltipBoxes[currentTooltip.index];
-    if(tooltipBox.type === "dictionary"){
-        const word = tooltipBoxes[currentTooltip.index].word;
+    if(tooltip.type === "dictionary"){
+        const word = tooltip.word;
         context.font = '20px zenMaruRegular';
         draw('black', "Definition of " + word, dictionary.entries[word]);
-    } else if (tooltipBox.type === "condition"){
-        const c = tooltipBox.condition;
+    } else if (tooltip.type === "condition"){
+        const c = tooltip.condition;
         const cInfo = conditionData[c.id];
         let cColor = c.color;
         if(cColor === undefined){
@@ -821,8 +866,8 @@ function drawTooltip() {
             }
         }
         draw(cColor,cInfo.name,parsedDesc,false,12);
-    } else if (tooltipBox.type === "item"){
-        let info = itemData[tooltipBox.item];
+    } else if (tooltip.type === "item"){
+        let info = itemData[tooltip.item];
         let splitDesc = info.desc.split("$");
         let parsedDesc = "";
         for(let i in splitDesc){
@@ -833,18 +878,18 @@ function drawTooltip() {
             }
         }
         draw(info.color,info.name,parsedDesc);
-    } else if(tooltipBox.type === "kanji list entry"){
+    } else if(tooltip.type === "kanji list entry"){
         // dont draw shit and the tooltip is just used as a signal that its being hovered over lol
-        /*
-        let kanji = kanjiFileData[tooltipBox.index];
-        let text = kanji.story;
-        context.font = '20px Arial';
-        draw('black',kanji.symbol + "   " + kanji.keyword,text)*/
-    } else if (tooltipBox.type === "kanji"){
-        let kanji = kanjiFileData[tooltipBox.index];
+    } else if (tooltip.type === "kanji"){
+        let kanji = kanjiFileData[tooltip.index];
         let text = kanji.story;
         context.font = '20px Arial';
        draw('black',kanji.symbol + "   " + kanji.keyword,text)
+    } else if(tooltip.type === "ability"){
+        let ability = tooltip.ability;
+        let abilityInfo = abilityFileData[ability];
+        context.font = '18px zenMaruRegular';
+        draw('black',abilityInfo.name,abilityInfo.tooltipDescription);
     }
 }
 
@@ -857,7 +902,7 @@ function reapplyTooltip(){
         globalInputData.mouseX <= t.x + t.width &&    // left of the right edge AND
         globalInputData.mouseY >= t.y &&         // below the top AND
         globalInputData.mouseY <= t.y + t.height) {    // above the bottom
-            currentTooltip = {timeStamp: performance.now(), index: i};
+            currentTooltip = {timeStamp: performance.now(), info: t};
         }
     }
 }
@@ -1325,7 +1370,7 @@ function addTrial(playerKanjiData, kanji, succeeded){
     if(kanji.srsCategory < 3){
         if(playerKanjiData.recentTrialCategories.length===10){
             // Move all elements down 1 and add the new trial
-            for(let i=0;i<8;i++){
+            for(let i=0;i<9;i++){
                 playerKanjiData.recentTrialCategories[i] = playerKanjiData.recentTrialCategories[i+1];
             }
             playerKanjiData.recentTrialCategories[9] = kanji.srsCategory;
@@ -1371,7 +1416,7 @@ function addTrial(playerKanjiData, kanji, succeeded){
 
             playerKanjiData.newKanji.pop();
             globalPlayerStatisticData.totalFirstTryKanji++;
-        } else if(kanji.srsCategory === 1 && reinforcingKanjiScoring(kanji) > 0){
+        } else if(kanji.srsCategory === 1 /*&& reinforcingKanjiScoring(kanji,playerKanjiData.trialsThisSession,currentDate) > 0*/){
             kanji.srsCategoryInfo.currentInterval = kanji.srsCategoryInfo.currentInterval*3*kanji.srsCategoryInfo.reviewMultiplier;
         }
         
@@ -1496,6 +1541,28 @@ function updateConditionTooltips(playerConditions){
 
 // Registers the tooltip boxes for the player's inventory while optionally adding an item in the highest slot
 function updateInventory(playerInventoryData,addItem = "none",addMenuTooltips = false){
+
+    if(addItem !== "none"){
+        for(let i=0; i<playerInventoryData.inventory.length; i++){
+            if(playerInventoryData.inventory[i] === "none"){
+                if(typeof addItem !== "number"){
+                    for(let j=0;j<itemData.length;j++){
+                        if(addItem === itemData[j].name){
+                            addItem = j;
+                            break;
+                        }
+                    }
+                }
+                if(typeof addItem !== "number"){
+                    addItem = 4;
+                }
+                playerInventoryData.inventory[i] = addItem;
+                globalItemsDiscovered[addItem] = true;
+                break;
+            }
+        }
+    }
+    /*
     for(let i = tooltipBoxes.length-1;i>=0;i--){
         if(tooltipBoxes[i].type === "item"){
             tooltipBoxes.splice(i,1);
@@ -1545,13 +1612,18 @@ function updateInventory(playerInventoryData,addItem = "none",addMenuTooltips = 
             addItem = "none";
         }
     }
-
-    reapplyTooltip();
+    */
+    //reapplyTooltip();
 }
 
-function playerTakeDamage(playerStatData,damage){
+// Returns true if player is dead, otherwise false
+function playerTakeDamage(playerStatData,dialogue,damage){
     playerStatData.combatData.hp-=damage;
     globalPlayerStatisticData.totalDamageTaken+=damage;
+    if(playerStatData.combatData.hp<=0){
+        return true;
+    }
+    return false;
 }
 
 // Will add graphics associated with awarding stuff to the player much later
@@ -1638,6 +1710,7 @@ function updateHunger(playerStatData,playerConditions,hungerChange){
         if(playerStatData.hunger > severeHungerThreshold){
             removeConditionsByName(playerConditions,"Hunger");
             addCondition(playerConditions, {id: 1});
+            status = "starving";
         } else if(playerStatData.hunger > hungerThreshold){
             addCondition(playerConditions, {id: 2});
             status = "hunger added";
@@ -1667,24 +1740,13 @@ function updateHunger(playerStatData,playerConditions,hungerChange){
     return status;
 }
 
-function useItem(playerInventoryData,playerStatData,playerConditions,inventoryIndex,particleSysX,particleSysY){
+function useItem(playerInventoryData,playerStatData,playerConditions,inventoryIndex){
     let playerCombatData = playerStatData.combatData;
     let item = playerInventoryData.inventory[inventoryIndex];
     let info = itemData[item];
 
     if(info.name === "Dev Gun"){
         addIngameLogLine(`You feel really cool for having this don't you.`,180,100,70,1.7,performance.now());
-        /*if(movingAnimationDuration === 200){
-            movingAnimationDuration = 40;
-            globalWorldData.speedMode = true;
-        } else {
-            movingAnimationDuration = 200;
-            globalWorldData.speedMode = false;
-        }
-        playerCombatData.power++;
-        var input = document.createElement("input");
-        input.setAttribute("type", "text");
-        document.getElementById("textboxContainer").appendChild(input);*/
     } else {
         for(const eff of info.effectList){
             if(eff === "heal"){
@@ -1694,10 +1756,27 @@ function useItem(playerInventoryData,playerStatData,playerConditions,inventoryIn
             }
         }
 
-        particleSystems.push(createParticleSystem({hue:120,saturation:100,lightness:50,x:particleSysX, y:particleSysY, temporary:true, particlesLeft:10, particleSpeed: 200, particleAcceleration: -100, particleLifespan: 2000}));
-
         playerInventoryData.inventory[inventoryIndex] = "none";
     }
+}
+
+// returns array with 0: success of ability activation, 1: dialogue (null if none)
+function activateAbility(playerWorldData,playerAbilityData,playerStatData,ability,timeStamp){
+    let abilityInfo = abilityFileData[ability];
+    let returnMessage = [false,null];
+
+    if(abilityInfo.name === "Dysymbolia-induced Growth"){
+        let collision = isCollidingOnTile(playerWorldData.location[0],playerWorldData.location[1],globalInputData.currentDirection);
+        if(collision !== null && typeof collision === "object"){
+            let entity = levels[globalWorldData.levelNum].entities[collision.index];
+            if(entity.id === "Berry_Bush"){
+                returnMessage[1] = initializeDialogue("world","berry_bush_dysymbolia_growth_activation",timeStamp,collision.index);
+                returnMessage[0] = true;
+            }
+        }
+    }
+
+    return returnMessage;
 }
 
 // Called when dialogue begins
@@ -1711,7 +1790,7 @@ function initializeDialogue(category, scenario, timeStamp, entityIndex = null){
     return {
         startTime: timeStamp,
         lineStartTime: timeStamp,
-        currentLine: 0,
+        currentLine: -1,
         textLines: dialogueFileData[category][scenario].textLines,
         lineInfo: dialogueFileData[category][scenario].lineInfo,
         cinematic: null,
@@ -1720,6 +1799,7 @@ function initializeDialogue(category, scenario, timeStamp, entityIndex = null){
         scenario: scenario,
     };
 }
+
 function endDialogue(timeStamp){
     globalInputData.currentDirectionFrozen = false;
     globalWorldData.timeOfLastUnpause = timeStamp;
@@ -1891,6 +1971,11 @@ function drawDialogueText(dialogue, x, y, maxWidth, lineHeight, timeStamp, regis
 
 // Draws a tile
 function drawTile(type, src, x, y, bitrate = 32, sizeMod = 1){
+    context.drawImage(tilesets.tilesetImages[type], src[0], src[1], bitrate, bitrate, x-1, y-1, bitrate*sizeMod+2, bitrate*sizeMod+2);
+}
+
+// Draws a tile
+function drawTileWithoutHack(type, src, x, y, bitrate = 32, sizeMod = 1){
     context.drawImage(tilesets.tilesetImages[type], src[0], src[1], bitrate, bitrate, x, y, bitrate*sizeMod, bitrate*sizeMod);
 }
 
@@ -1930,6 +2015,8 @@ function drawItemIcon(itemId,x,y){
     }
 }
 
+function getTileNum(lev,x,y){return ((x/32) % lev.gridWidth) + (y/32)*lev.gridWidth;}
+
 // Checks if a tile is marked for collision or not. Scene must be adventure 
 // checkAdjacent to be set to "up" "left" "right" or "down" or to be left undefined
 // - if defined, checks that adjacent tile instead of the one directly indicated by the x and y
@@ -1953,10 +2040,8 @@ function isCollidingOnTile(x, y, checkAdjacent = false){
     if (x < 0 || y < 0 || x > (lev.gridWidth-1)*32 || y > (lev.gridHeight-1)*32){
         return "bounds";
     }
-
-    // Currently this local function does not need to exist, but I thought it might have needed to
-    const getTileNum = function(x,y){return ((x/32) % lev.gridWidth) + (y/32)*lev.gridWidth;}
-    let tileNum = getTileNum(x,y);
+    
+    let tileNum = getTileNum(lev,x,y);
     if(tileNum>lev.collisions.length || tileNum<0){
         throw "Something is wrong with tile collision dumb bitch";
     } else if (lev.collisions[tileNum]!==0){
@@ -2023,10 +2108,14 @@ let newDysymboliaCinematic = function(timeStamp, phase, trials, dysymboliaInfo, 
 }
 
 // All enemies in the room get a chance to make one action
-let takeEnemyActions = function(timeStamp, roomEnemies, combat){
+let takeEnemyActions = function(playerWorldData, timeStamp, roomEnemies, combat){
     // return one of the 4 directions or "adjacent" if already there
-    let routeTowardsPlayer = function(enemyX,enemyY,playerX,playerY){
-        return "adjacent";
+    let enemyPathfinding = function(enemy,targetTile){
+        if(enemy.dungeonRoom === playerWorldData.dungeonRoom){
+            return "adjacent";
+        } else {
+            return "different room";
+        }
     }
     let takeCombatAction = function(enemy){
         let enemyInfo = enemyFileData[enemy.fileDataIndex];
@@ -2046,7 +2135,7 @@ let takeEnemyActions = function(timeStamp, roomEnemies, combat){
     } else {
         for(let i=0;i<roomEnemies.length;i++){
             let enemy = roomEnemies[i];
-            let step = routeTowardsPlayer();
+            let step = enemyPathfinding(enemy,[0,0]);
             if(step === "adjacent"){
                 // initialize combat. we dont use a seperate funciton for this yet.
                 combat = {
@@ -2065,6 +2154,15 @@ let takeEnemyActions = function(timeStamp, roomEnemies, combat){
         }
     }
     return combat;
+}
+
+// Updates things that change when player moves; currently it just updates the current dungeon room
+function updatePlayerLocation(playerWorldData){
+    let lev = levels[globalWorldData.levelNum];
+    let tileNum = getTileNum(lev,playerWorldData.location[0],playerWorldData.location[1]);
+    if(lev.levelType === "dungeon"){
+        playerWorldData.dungeonRoom = lev.roomsGrid[tileNum];
+    }
 }
 
 // Recalculates all modifiers, call this whenever modifiers are added or removed
@@ -2098,12 +2196,11 @@ function updateModifiers(playerStatData){
         } 
     }
     for(let i=0;i<multiplicativeModifiers.length;i++){
-        // Apply additive stat multipliers and defer multiplicative ones
         let mod = multiplicativeModifiers[i];
         if(mod.statCategory === "general"){
             playerStatData[mod.stat] *= mod.number;
         } else if(mod.statCategory === "combat"){
-            playerStatData.combatData[mod.stat] *= mod.number;
+            playerStatData.combatData[mod.stat] = Math.round(playerStatData.combatData[mod.stat]*mod.number);
         }
     }
 };
@@ -2128,7 +2225,8 @@ function updateAbilityTooltips(playerAbilityData){
     }
 }
 
-function unequipAbility(playerAbilityData,playerStatData,slotIndex,abilityIndex){
+function unequipAbility(playerConditions,playerAbilityData,playerStatData,slotIndex,abilityIndex){
+    let abilityInfo = abilityFileData[playerAbilityData.list[abilityIndex].index];
     playerAbilityData.equippedAbilities[slotIndex] = null;
 
     // Remove modifiers 
@@ -2138,9 +2236,17 @@ function unequipAbility(playerAbilityData,playerStatData,slotIndex,abilityIndex)
         }
     }
     updateModifiers(playerStatData);
+    
+
+    if(abilityInfo.name === "Suppress Dysymbolia"){
+        playerAbilityData.dysymboliaSuppressed = false;
+        addCondition(playerConditions,{id: 0});
+        sortPlayerConditions(playerConditions);
+        updateConditionTooltips(playerConditions);
+   }
 }
 
-function equipAbility(playerAbilityData,playerStatData,slotIndex,abilityIndex){
+function equipAbility(playerConditions,playerAbilityData,playerStatData,slotIndex,abilityIndex){
     // Check if the ability is already equipped and return before effect application if it is
     for(let j=0;j<playerAbilityData.equippedAbilities.length;j++){
         if(j !== slotIndex && playerAbilityData.equippedAbilities[j] === abilityIndex){
@@ -2151,7 +2257,7 @@ function equipAbility(playerAbilityData,playerStatData,slotIndex,abilityIndex){
     }
     // Check if an ability is being unequpped at the same time 
     if(playerAbilityData.equippedAbilities[slotIndex] !== null){
-        unequipAbility(playerAbilityData,playerStatData,slotIndex,playerAbilityData.equippedAbilities[slotIndex]);
+        unequipAbility(playerConditions,playerAbilityData,playerStatData,slotIndex,playerAbilityData.equippedAbilities[slotIndex]);
     }
     playerAbilityData.equippedAbilities[slotIndex] = abilityIndex;
 
@@ -2174,6 +2280,15 @@ function equipAbility(playerAbilityData,playerStatData,slotIndex,abilityIndex){
         }
     }
     updateModifiers(playerStatData);
+    // Special effect for dysymbolia suppression
+    if(abilityInfo.name === "Suppress Dysymbolia"){
+        // Red particle system
+        particleSystems.push(createParticleSystem({hue:0,saturation:100,lightness:50,x:globalInputData.mouseX, y:globalInputData.mouseY, temporary:true, particlesLeft:40, particleSize:5, particlesPerSec: 4000, particleSpeed: 310, particleAcceleration: -150, particleLifespan: 2100}));
+        playerAbilityData.dysymboliaSuppressed = true;
+        removeConditionsByName(playerConditions,"Dysymbolia");
+        sortPlayerConditions(playerConditions);
+        updateConditionTooltips(playerConditions);
+   }
 }
 
 function addIngameLogLine(lineText,h,s,l,durationMultiplier,timeStamp){
@@ -2202,8 +2317,8 @@ function Game(){
     let bgColor = 'rgb(103,131,92)';
 
     // State of the world screen not included in the global world state
-    
     let blur = 0;
+    let fadeout = null;
     let activeDamage = {
         // If startFrame is positive, there is currently active damage.
         startFrame: -1,
@@ -2222,6 +2337,7 @@ function Game(){
     let playerWorldData = {
         location: levels[0].defaultLocation,
         graphicLocation: levels[0].defaultLocation,
+        dungeonRoom: 0,
         src: [32,0],
         bitrate: 32,
         animation: null,
@@ -2297,6 +2413,8 @@ function Game(){
         acquiringAbility: null,
 
         canManuallyTriggerDysymbolia: false,
+
+        dysymboliaSuppressed: false,
     };
 
     let playerSrsSettingsData = {
@@ -2353,8 +2471,8 @@ function Game(){
         }*/
     ];
 
-    let menuScene = null;
-    let menuData = {
+    /*let globalWorldData.menuScene = null;
+    let globalWorldData.menuData = {
         loadStatement: null,
         selectedAbility: 0,
         selectedKanji: 0,
@@ -2363,7 +2481,7 @@ function Game(){
 
         // array to change the equipped abilities to after menu is closed
         //newEquippedAbilities: [null,null,null,null,null,null,null,null,null,null],
-    }
+    }*/
 
     let dialogue = null;
     let combat = null;
@@ -2384,13 +2502,34 @@ function Game(){
         let newTime = (globalWorldData.gameClockOfLastPause+Math.floor((timeStamp-globalWorldData.timeOfLastUnpause)/1000))%1440;
     
         // If a second went by, update everything that needs to be updated by the second
-        if(dialogue === null && menuScene === null && combat === null && (newTime > globalWorldData.currentGameClock || (globalWorldData.currentGameClock === 1439 && newTime !== 1439))){
+        if(dialogue === null && globalWorldData.menuScene === null && combat === null && (newTime > globalWorldData.currentGameClock || (globalWorldData.currentGameClock === 1439 && newTime !== 1439))){
             if(newTime % 9 === 0){
-                if(updateHunger(playerStatData,playerConditions,1) === "hunger added" && globalPlayerStatisticData.sceneCompletion["tutorial hunger scene"]===0){
+                let hungerStatus = updateHunger(playerStatData,playerConditions,1);
+                
+                if(hungerStatus === "starving"){
+                    if(playerTakeDamage(playerStatData,dialogue,Math.round(playerStatData.combatData.maxHp/25))){
+                        dialogue = initializeDialogue("death","standard",timeStamp);
+                    }
+                    activeDamage = {
+                        // If startFrame is positive, there is currently active damage.
+                        startFrame: timeStamp,
+            
+                        // Duration of the current damage
+                        duration: 1,
+            
+                        // How much the screen was shaken by
+                        offset: [0,0],
+            
+                        // Last time the screen was shaken to not shake every single frame
+                        timeOfLastShake: -1,
+                    };
+                }
+                if(hungerStatus === "hunger added" && globalPlayerStatisticData.sceneCompletion["tutorial hunger scene"]===0 && !playerAbilityData.dysymboliaSuppressed && dialogue !== null){
                     dialogue = initializeDialogue("scenes","tutorial hunger scene",timeStamp);
                 }
             } 
-            if(timeUntilDysymbolia > 0){
+            if(!playerAbilityData.dysymboliaSuppressed){
+                if(timeUntilDysymbolia > 0){
                 timeUntilDysymbolia-=1;
             } else if(dialogue === null){
                 // Begin dysymbolia dialogue!
@@ -2403,6 +2542,8 @@ function Game(){
                     dialogue = initializeDialogue("randomDysymbolia","auto",timeStamp);
                 }
             }
+            }
+            
     
             globalWorldData.currentGameClock = newTime;
         }
@@ -2425,6 +2566,7 @@ function Game(){
                             playerWorldData.graphicLocation = [exitLocation[0],exitLocation[1]];
                             playerWorldData.src = [32,spritesheetOrientationPosition[connections[i].exitDirection]*32];
                             globalInputData.currentDirection = connections[i].exitDirection;
+                            updatePlayerLocation(playerWorldData);
                             break;
                         }
                     }
@@ -2434,6 +2576,11 @@ function Game(){
                         let enemy = lev.entities[i];
                         let enemyInfo = enemyFileData[enemy.fileDataIndex];
                         enemy.hp = enemy.maxHp = enemyInfo.hp;
+
+                        if(lev.levelType === "dungeon"){
+                            let tileNum = getTileNum(lev,enemy.location[0],enemy.location[1]);
+                            enemy.dungeonRoom = lev.roomsGrid[tileNum];
+                        }
 
                         roomEnemies.push(enemy);
                     }
@@ -2454,28 +2601,37 @@ function Game(){
         }
 
         let applyUpkeepEffects = function(){
-            let newConditions = [];
-            let isUpdateNecessary = false;
             let poisonDamageTaken = 0;
+
+            // First, apply effects
             for(let i=0;i<playerConditions.length;i++){
                 let condition = playerConditions[i];
                 let conditionFileInfo = conditionData[condition.id];
                 if(conditionFileInfo.name === "Lizard Toxin"){
                     poisonDamageTaken++;
                     condition.turnsLeft--;
-                    if(condition.turnsLeft<=0){
-                        isUpdateNecessary = true;
-                    } else {
-                        newConditions.push(condition);
-                    }
-                } else {
-                    newConditions.push(condition);
+                    updateHunger(playerStatData,playerConditions,2);
                 }
             }
     
             if(poisonDamageTaken>0){
-                playerTakeDamage(playerStatData,poisonDamageTaken);
+                if(playerTakeDamage(playerStatData,dialogue,poisonDamageTaken)){
+                    dialogue = initializeDialogue("death","standard",timeStamp);
+                }
                 addIngameLogLine(`Took ${poisonDamageTaken} poison damage.`,78,100,40,1.5,timeStamp);
+            }
+
+            // Lastly, remove conditions that are ready for removal.
+            let newConditions = [];
+            let isUpdateNecessary = false;
+            for(let i=0;i<playerConditions.length;i++){
+                let condition = playerConditions[i];
+                let conditionFileInfo = conditionData[condition.id];
+                if(condition.turnsLeft<=0){
+                    isUpdateNecessary = true;
+                } else {
+                    newConditions.push(condition);
+                }
             }
     
             if(isUpdateNecessary){
@@ -2487,14 +2643,15 @@ function Game(){
     
         let applyPlayerActionEffect = function(){
             let enemy = combat.enemy;
+            let enemyInfo = enemyFileData[enemy.fileDataIndex];
     
             let damage = Math.min(Math.round(playerStatData.combatData.attackPower),enemy.hp);
             enemy.hp -= damage;
             globalPlayerStatisticData.totalDamageDealt+=damage;
-            addIngameLogLine(`Mari stomped the lizard dealing ${damage} damage!`,0,100,100,1.5,timeStamp);
+            addIngameLogLine(`Mari ${enemyInfo.receivingRegularAttackMessage} dealing ${damage} damage!`,0,100,100,1.5,timeStamp);
     
             if(enemy.hp<=0){
-                addIngameLogLine(`Mari has defeated a Green Lizard!`,130,100,65,0.65,timeStamp);
+                addIngameLogLine(`Mari has defeated a ${enemyInfo.name}!`,130,100,65,0.65,timeStamp);
                 enemy.ephemeral = true;
                 enemy.visible = false;
                 combat.status = "enemy defeated";
@@ -2511,7 +2668,9 @@ function Game(){
             let enemyInfo = enemyFileData[enemy.fileDataIndex];
             let action = combat.currentEnemyAction.actionInfo;
     
-            playerTakeDamage(playerStatData,action.power);
+            if(playerTakeDamage(playerStatData,dialogue,action.power)){
+                dialogue = initializeDialogue("death","standard",timeStamp);
+            }
             addIngameLogLine(action.text.replace("{damage}", action.power),0,90,70,1.5,timeStamp);
     
             if(action.condition !== undefined){
@@ -2620,9 +2779,7 @@ function Game(){
                         for(let i = tooltipBoxes.length-1;i>=0;i--){
                             if(tooltipBoxes[i].type === "dictionary" || tooltipBoxes[i].type === "kanji"){
                                 tooltipBoxes.splice(i,1);
-                                //if(currentTooltip !== null && currentTooltip.index === i){
                                     currentTooltip = null;
-                                //}
                             }
                         }
                         if(dialogue.scenario.includes("tutorial") || dialogue.category === "randomDysymbolia"){
@@ -2633,7 +2790,7 @@ function Game(){
                             }
                         } else if(dialogue.category === "abilityAcquisition"){
                             
-                            if(!dialogue.dysymboliaFailed){
+                            if(dialogue.trialFailureCount === 0){
                                 // Phase 4 where we play the animation acquired cinematic
                                 dialogue.cinematic.phaseNum = 4;
                                 dialogue.textLines[dialogue.currentLine] = dialogue.scenario;
@@ -2643,10 +2800,13 @@ function Game(){
                                 dialogue.cinematic.phaseStartTime = timeStamp;
                             } else {
                                 dialogue.cinematic = null;
+                                dialogue.trialFailureCount = 0;
                                 advanceDialogueState();
                             }
                         } else {
-                            dialogue = endDialogue(timeStamp);
+                            //dialogue = endDialogue(timeStamp);
+                            dialogue.cinematic = null;
+                            advanceDialogueState();
                         }
                         return;
                     }
@@ -2714,9 +2874,7 @@ function Game(){
                     for(let i = tooltipBoxes.length-1;i>=0;i--){
                         if(tooltipBoxes[i].type === "dictionary" || tooltipBoxes[i].type === "kanji"){
                             tooltipBoxes.splice(i,1);
-                            //if(currentTooltip !== null && currentTooltip.index === i){
-                                currentTooltip = null;
-                            //}
+                            currentTooltip = null;
                         }
                     }
 
@@ -2744,7 +2902,7 @@ function Game(){
                 advanceDysymboliaCinematicState();
             } else {
                 // First, apply effects of the previous player response if there was one
-                if(dialogue.lineInfo[dialogue.currentLine].playerResponses){
+                if(dialogue.currentLine>=0 && dialogue.lineInfo[dialogue.currentLine].playerResponses){
                     let lineInfo = dialogue.lineInfo[dialogue.currentLine];
                     if(lineInfo && lineInfo.selectedResponse !== undefined){
                         applyConditionalEffect(lineInfo.responseEffects[lineInfo.selectedResponse],lineInfo);
@@ -2760,15 +2918,15 @@ function Game(){
                 } else {
                     // Otherwise advance line
                     dialogue.lineStartTime = timeStamp;
-    
-                    if(dialogue.lineInfo[dialogue.currentLine].takeEnemyTurn !== undefined){
-                        combat = takeEnemyActions(timeStamp, roomEnemies, combat);
-                        dialogue = endDialogue(timeStamp);
-                        return;
-                    }
-    
+
                     if(advanceToNextLine){
                         dialogue.currentLine++;
+                    }
+    
+                    if(dialogue.lineInfo[dialogue.currentLine].takeEnemyTurn !== undefined){
+                        combat = takeEnemyActions(playerWorldData, timeStamp, roomEnemies, combat);
+                        dialogue = endDialogue(timeStamp);
+                        return;
                     }
     
                     // Apply effects that are on the new line
@@ -2789,6 +2947,55 @@ function Game(){
                     if(dialogue.lineInfo[dialogue.currentLine].areaChange !== undefined){
                         changeArea(playerWorldData,dialogue.lineInfo[dialogue.currentLine].areaChange,dialogue.lineInfo[dialogue.currentLine].connectionId);
                     }
+                    if(dialogue.lineInfo[dialogue.currentLine].berryGacha !== undefined){
+                        let qualityFactor = 1 + (4 - dialogue.trialFailureCount);
+                        let randomPool = [];
+                        for(let i=0; i<itemData.length;i++ ){
+                            let item = itemData[i];
+                            if(item.subtypes.includes("berry")){
+                                let rarityDifference = qualityFactor - item.gachaRarity;
+                                let timesToAddToPool = 0;
+                                if(rarityDifference === 5){
+                                    timesToAddToPool = 2;
+                                } else if(rarityDifference === 4){
+                                    timesToAddToPool = 4;
+                                } else if(rarityDifference === 3){
+                                    timesToAddToPool = 7;
+                                } else if(rarityDifference === 2){
+                                    timesToAddToPool = 9;
+                                } else if(rarityDifference === 1){
+                                    timesToAddToPool = 11;
+                                } else if(rarityDifference === 0){
+                                    timesToAddToPool = 12;
+                                } else if(rarityDifference === -1){
+                                    timesToAddToPool = 5;
+                                } else if(rarityDifference === -2){
+                                    timesToAddToPool = 2;
+                                } else if(rarityDifference === -3){
+                                    timesToAddToPool = 1;
+                                }
+                                for(let j=0; j<timesToAddToPool;j++){
+                                    randomPool.push(i);
+                                }
+                            }
+                        }
+                        if(randomPool.length > 0){
+                            let result = randomPool[Math.floor(Math.random()*randomPool.length)];
+                            lev.entities[dialogue.entityIndex].berries = itemData[result].name.split(" ")[0];
+                            addIngameLogLine(`Grew ${lev.entities[dialogue.entityIndex].berries} Berries`,0,100,100,1.5,timeStamp);
+                        } else {
+                            addIngameLogLine(`Failed to add berry`,0,50,50,1,timeStamp);
+                        }
+                        
+                    }
+                    if(dialogue.lineInfo[dialogue.currentLine].fadeout !== undefined){
+                        fadeout = {
+                            fadeStartTime: timeStamp,
+                            duration: dialogue.lineInfo[dialogue.currentLine].fadeout.duration,
+                            isSkippable: dialogue.lineInfo[dialogue.currentLine].fadeout.isSkippable
+                        }
+                    }
+                        
                     let lineInfo = dialogue.lineInfo[dialogue.currentLine];
     
                     // Check for a conditional on the new line and evaluate
@@ -2818,8 +3025,8 @@ function Game(){
                         dialogue.cinematic = newDysymboliaCinematic(timeStamp,0,1,lineInfo.dysymbolia);
     
                     } else if (lineInfo !== undefined && lineInfo.randomDysymbolia !== undefined){
-                        
-    
+                        dialogue.trialFailureCount = 0;
+
                         timeUntilDysymbolia = -1;
                         let kanjiPlayerInfo = getNextKanji(playerKanjiData);
                         let kanjiFileInfo = kanjiFileData[kanjiPlayerInfo.index];
@@ -2849,11 +3056,11 @@ function Game(){
                         }
                         specialParticleSystem.specialDrawLocation = true;
                         particleSystems.push(createParticleSystem(specialParticleSystem));
-                        dialogue.cinematic = newDysymboliaCinematic(timeStamp,0,5,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index]);
+                        dialogue.cinematic = newDysymboliaCinematic(timeStamp,0,lineInfo.randomDysymbolia,[kanjiFileInfo.symbol,[kanjiFileInfo.keyword.toLowerCase()],"white",kanjiFileInfo.symbol,kanjiPlayerInfo.index]);
     
                         dialogue.textLines[dialogue.currentLine] = kanjiFileInfo.symbol + "...";
                     } else if (lineInfo !== undefined && lineInfo.abilityAcquisition !== undefined){
-                        dialogue.dysymboliaFailed = false;
+                        dialogue.trialFailureCount = 0;
     
                         let specialParticleSystem = dialogue.lineInfo[dialogue.currentLine].particleSystem;
                         specialParticleSystem.specialDrawLocation = true;
@@ -2872,7 +3079,7 @@ function Game(){
         }
     
         const updateWorldScreen = function(){
-            if(globalInputData.mouseDown && currentTooltip && tooltipBoxes[currentTooltip.index].type === "condition" && tooltipBoxes[currentTooltip.index].condition.id === 0 && playerAbilityData.canManuallyTriggerDysymbolia){
+            if(globalInputData.mouseDown && currentTooltip && currentTooltip.info.type === "condition" && currentTooltip.info.condition.id === 0 && playerAbilityData.canManuallyTriggerDysymbolia){
                 if(timeUntilDysymbolia > 0){
                     timeUntilDysymbolia = 0;
                     globalPlayerStatisticData.totalDysymboliaManualTriggers++;
@@ -2985,9 +3192,7 @@ function Game(){
                                 dialogue.cinematic.result = "fail";
                                 if(dialogue.cinematic.info.length > 4){
                                     addTrial(playerKanjiData,playerKanjiData.kanjiList[dialogue.cinematic.info[4]],false);
-                                    if(dialogue.category === "abilityAcquisition"){
-                                        dialogue.dysymboliaFailed = true;
-                                    }
+                                    dialogue.trialFailureCount++;
                                 }
                             }
                             globalInputData.inputtingText = false;
@@ -3001,7 +3206,7 @@ function Game(){
                         // If animation finished, apply result, then start phase 3
                         dialogue.cinematic.phaseNum = 3;
                         dialogue.cinematic.phaseStartTime = timeStamp;
-                        if(dialogue.cinematic.trialsLeft <= 0){
+                        if( (dialogue.cinematic.trialsLeft <= 0 && dialogue.category === "randomDysymbolia") || dialogue.category === "scenes"){
                             playerStatData.power = Math.min(playerStatData.powerSoftcap,playerStatData.power+1);
                             globalPlayerStatisticData.totalPowerGained++;
                         }
@@ -3012,8 +3217,9 @@ function Game(){
                                 advanceDialogueState();
                             }
                         } else {
-                            // TODO: make taking damage a function that checks death and stuff lol
-                            playerTakeDamage(playerStatData,1);
+                            if(playerTakeDamage(playerStatData,dialogue,1)){
+                                dialogue = initializeDialogue("death","standard",timeStamp);
+                            }
                             activeDamage = {
                                 // If startFrame is positive, there is currently active damage.
                                 startFrame: timeStamp,
@@ -3036,7 +3242,9 @@ function Game(){
                         dialogue.cinematic.phaseStartTime = timeStamp;
                     }
                 }
-                // If there isnt a cinematic theres nothing to handle about the dialogue in update phase
+                if(dialogue.currentLine < 0){
+                    advanceDialogueState();
+                }
             } else {
                 // If not in an animation (like movement), check for movement input
                 if(playerWorldData.animation===null){
@@ -3046,6 +3254,7 @@ function Game(){
                         let collision = isCollidingOnTile(playerWorldData.location[0],playerWorldData.location[1],"Down");
                         if(collision===null || collision === 12 || collision === 13 || collision === 14){
                             playerWorldData.location[1]+=32;
+                            updatePlayerLocation(playerWorldData);
                             initializeAnimation("basic movement",playerWorldData,globalInputData.currentDirection);
                             globalPlayerStatisticData.stepCount++;
                         } else if (collision === "bounds"){
@@ -3136,7 +3345,7 @@ function Game(){
                         combat = null;
                     } else {
                         combat.currentPlayerAction = null;
-                        combat = takeEnemyActions(timeStamp, roomEnemies, combat);
+                        combat = takeEnemyActions(playerWorldData, timeStamp, roomEnemies, combat);
                     }
                 } else if(timeElapsed > 600 && !combat.playerActionEffectApplied){
                     applyPlayerActionEffect();
@@ -3157,7 +3366,14 @@ function Game(){
                 if(globalWorldData.chatting){
 
                 } else if(dialogue !== null){
-                    advanceDialogueState();
+                    if(fadeout!==null && !fadeout.isSkippable){
+                        let fadeProgress = (timeStamp - fadeout.fadeStartTime)/fadeout.duration;
+                        if(fadeProgress > 1){
+                            advanceDialogueState();
+                        }
+                    } else {
+                        advanceDialogueState();
+                    }
                 } else if(combat !== null && (combat.currentEnemyAction !== null || combat.currentPlayerAction !== null)){
                     // While an action is undergoing do not allow interaction
                     /*combat.currentPlayerAction = {
@@ -3172,7 +3388,7 @@ function Game(){
                         if(entity.id === "Fruit_Tree" && (entity.hasBottomFruit || entity.hasLeftFruit || entity.hasRightFruit)){
                             if(globalPlayerStatisticData.sceneCompletion["tutorial fruit scene"]){
                                 dialogue = initializeDialogue("world","fruit_tree",timeStamp,collision.index);
-                            } else {
+                            } else if(!playerAbilityData.dysymboliaSuppressed){
                                 dialogue = initializeDialogue("scenes","tutorial fruit scene",timeStamp,collision.index);
                                 globalPlayerStatisticData.totalSceneDysymboliaExperienced++;
                             }
@@ -3206,6 +3422,15 @@ function Game(){
                             }
                             dialogue = initializeDialogue(entity.id.toLowerCase(),"initial",timeStamp,collision.index);
                         } else if(entity.type === "enemy") {
+                            if(globalInputData.currentDirection === "Down"){
+                                entity.src[1] = spritesheetOrientationPosition.Up * 32;
+                            } else if (globalInputData.currentDirection === "Right"){
+                                entity.src[1] = spritesheetOrientationPosition.Left * 32;
+                            } else if (globalInputData.currentDirection === "Left"){
+                                entity.src[1] = spritesheetOrientationPosition.Right * 32;
+                            } else {
+                                entity.src[1] = spritesheetOrientationPosition.Down * 32;
+                            }
                             if(combat !== null){
                                 combat.currentPlayerAction = {
                                     actionInfo: "basic attack",
@@ -3230,14 +3455,14 @@ function Game(){
                             }
                         }
                     } else if(collision === 1){
-                        if(globalPlayerStatisticData.sceneCompletion["tutorial water scene"]>0){
+                        if(globalPlayerStatisticData.sceneCompletion["tutorial water scene"]>0 || playerAbilityData.dysymboliaSuppressed){
                             dialogue = initializeDialogue("world","water",timeStamp);
                         } else {
                             dialogue = initializeDialogue("scenes","tutorial water scene",timeStamp);
                             globalPlayerStatisticData.totalSceneDysymboliaExperienced++;
                         }
                     } else if(collision === 7){
-                        if(globalPlayerStatisticData.sceneCompletion["tutorial cloud scene"]>0){
+                        if(globalPlayerStatisticData.sceneCompletion["tutorial cloud scene"]>0 || playerAbilityData.dysymboliaSuppressed){
                             dialogue = initializeDialogue("world","clouds",timeStamp);
                         } else {
                             dialogue = initializeDialogue("scenes","tutorial cloud scene",timeStamp);
@@ -3275,29 +3500,45 @@ function Game(){
                     }
                 }
             }
+
+            // Update clouds
+            cloudYOffset+=4/fps
+            cloudXOffset+=2/fps
+            if(cloudYOffset >= 32){
+                cloudYOffset -= 32;
+                for(let i=0; i<clouds.length;i++){
+                    let splicedCloud = clouds[i].splice(0,1)[0];
+                    clouds[i].push(splicedCloud);
+                }
+            }
+            if(cloudXOffset >= 32){
+                cloudXOffset -= 32;
+                let splicedColumn = clouds.splice(0,1)[0];
+                clouds.push(splicedColumn);
+            }
             
         }; // Update world screen function ends here
     
         const updateMenuScreen = function(){
-            if(menuScene === "Kanji List"){
-                if(globalInputData.mouseDown && currentTooltip && tooltipBoxes[currentTooltip.index].type === "kanji list entry"){
-                    menuData.selectedKanji = tooltipBoxes[currentTooltip.index].index;
+            if(globalWorldData.menuScene === "Kanji List"){
+                if(globalInputData.mouseDown && currentTooltip && currentTooltip.info.type === "kanji list entry"){
+                    globalWorldData.menuData.selectedKanji = currentTooltip.info.index;
                 }
-            } else if(menuScene === "Theory"){
-                if(globalInputData.mouseDown && currentTooltip && !menuData.isReadingWriteup && menuData.selectedWriteup !== tooltipBoxes[currentTooltip.index].index && tooltipBoxes[currentTooltip.index].type === "write-up entry"){
-                    menuData.selectedWriteup = tooltipBoxes[currentTooltip.index].index;
+            } else if(globalWorldData.menuScene === "Theory"){
+                if(globalInputData.mouseDown && currentTooltip && !globalWorldData.menuData.isReadingWriteup && globalWorldData.menuData.selectedWriteup !== currentTooltip.info.index && currentTooltip.info.type === "write-up entry"){
+                    globalWorldData.menuData.selectedWriteup = currentTooltip.info.index;
                     initializeMenuTab();
                 }
-            } else if(menuScene === "Abilities"){
-                if(globalInputData.mouseDown && currentTooltip && draggingObject === null && menuData.selectedAbility !== tooltipBoxes[currentTooltip.index].index && tooltipBoxes[currentTooltip.index].type === "ability menu ability"){
-                    menuData.selectedAbility = tooltipBoxes[currentTooltip.index].index;
+            } else if(globalWorldData.menuScene === "Abilities"){
+                if(globalInputData.mouseDown && currentTooltip && draggingObject === null && globalWorldData.menuData.selectedAbility !== currentTooltip.info.index && currentTooltip.info.type === "ability menu ability"){
+                    globalWorldData.menuData.selectedAbility = currentTooltip.info.index;
                     initializeMenuTab();
                 }
             }
             globalInputData.key1Clicked = globalInputData.key2Clicked = false;
         };
     
-        if(menuScene !== null){
+        if(globalWorldData.menuScene !== null){
             updateMenuScreen();
         } else {
             updateWorldScreen();
@@ -3332,6 +3573,9 @@ function Game(){
                         break;
                     case '$master':
                         playerAbilityData.canManuallyTriggerDysymbolia = true;
+                        break;
+                    case '$hunger':
+                        updateHunger(playerStatData,playerConditions,Number(splitCommand[1]));
                         break;
                     case '$timewarp':
                         // This command saves the game to slot 1 with all the dates shifted 24 hours behind
@@ -3375,10 +3619,22 @@ function Game(){
         }
         if(globalInputData.doubleClicked){
             if(currentTooltip!== null){
-                let tooltip = tooltipBoxes[currentTooltip.index];
+                let tooltip = currentTooltip.info;
                 if(tooltip.type === "item"){
-                    useItem(playerInventoryData,playerStatData,playerConditions,tooltip.inventoryIndex,tooltip.x + tooltip.width/2,tooltip.y + tooltip.height/2);
-                    updateInventory(playerInventoryData,"none",menuScene==="Inventory");
+                    useItem(playerInventoryData,playerStatData,playerConditions,tooltip.inventoryIndex);
+                    updateInventory(playerInventoryData,"none",globalWorldData.menuScene==="Inventory");
+                    particleSystems.push(createParticleSystem({hue:120,saturation:100,lightness:50,x:tooltip.x + tooltip.width/2, y:tooltip.y + tooltip.height/2, temporary:true, particlesLeft:10, particleSpeed: 200, particleAcceleration: -100, particleLifespan: 2000}));
+                }
+                if(tooltip.type === "ability"){
+                    if(playerAbilityData.equippedAbilities[tooltip.slotNum] !== null){
+                        let activationResult = activateAbility(playerWorldData,playerAbilityData,playerStatData,playerAbilityData.equippedAbilities[tooltip.slotNum],timeStamp);
+                        if(activationResult[0]){
+                            particleSystems.push(createParticleSystem({hue:120,saturation:100,lightness:50,x:tooltip.x + tooltip.width/2, y:tooltip.y + tooltip.height/2, temporary:true, particlesLeft:10, particleSpeed: 200, particleAcceleration: -100, particleLifespan: 2000}));
+                        }
+                        if(activationResult[1] !== null){
+                            dialogue = activationResult[1];
+                        }
+                    }
                 }
             }
             globalInputData.doubleClicked = false;
@@ -3411,9 +3667,6 @@ function Game(){
                 context.translate(ad.offset[0],ad.offset[1]);
             }
         }
-    
-        // Set to false when the right part of the screen is to be used for something else
-        let isToDrawStatusBar = true;
     
         const drawWorldScreen = function(){
             let lev = levels[globalWorldData.levelNum];
@@ -3482,6 +3735,21 @@ function Game(){
                     for (let t of layer.tiles){
                         cameraTile(i, [32*Math.floor( (timeStamp/400) % 4),0], t.px[0], t.px[1],camX,camY);
                     }
+                } else if(layer.name === "Cloud_Tiles") {
+                    for (let t of layer.tiles){
+                        cameraTile(i, clouds[t.px[0]/32][t.px[1]/32], t.px[0]-cloudXOffset, t.px[1]-cloudYOffset,camX,camY);
+                    }
+                    if(lev.identifier === "Floating_Island_0"){
+                        //draw south border of clouds
+                        for (let j=0; j<clouds[0].length; j++){
+                            cameraTile(i, clouds[j][clouds.length-1], j*32-cloudXOffset, (clouds.length-1)*32-cloudYOffset,camX,camY);
+                        }
+                        // draw west border of clouds
+                        for (let j=0; j<clouds.length-1; j++){
+                            cameraTile(i, clouds[clouds.length-1][j], (clouds.length-1)*32-cloudXOffset, j*32-cloudYOffset,camX,camY);
+                        }
+                    }
+                    
                 } else {
                     for (let t of layer.tiles){
                         cameraTile(i, t.src, t.px[0], t.px[1],camX,camY);
@@ -3568,6 +3836,8 @@ function Game(){
                     cameraTile(tilesetNum,[0,bitrate*3],x,y,camX,camY);
                 } else if (bush.berries === "Blue"){
                     cameraSpecialTile(miscImages.bbush,[0,0],x,y,camX,camY);
+                } else if (bush.berries === "Yellow"){
+                    cameraSpecialTile(miscImages.ybush,[0,0],x,y,camX,camY);
                 }
             }
     
@@ -3629,7 +3899,7 @@ function Game(){
                 context.fillRect(globalWorldData.worldX, globalWorldData.worldY, w*globalWorldData.sizeMod, h*globalWorldData.sizeMod);
             }
     
-            let applyBlur = function(){
+            let applyBlurAndFade = function(){
                 if (blur > 0) {
                     context.filter = `blur(${blur}px)`;
                     // The canvas can draw itself lol
@@ -3639,10 +3909,15 @@ function Game(){
                      );
                     context.filter = "none";
                 }
+                if(fadeout !== null){
+                    let fadeProgress = (timeStamp - fadeout.fadeStartTime)/fadeout.duration;
+                    context.fillStyle = `hsla(0, 0%, 0%, ${fadeProgress})`;
+                    context.fillRect(globalWorldData.worldX, globalWorldData.worldY, w*globalWorldData.sizeMod, h*globalWorldData.sizeMod);
+                }
             }
     
             // Draw dialogue
-            if(dialogue !== null){
+            if(dialogue !== null && dialogue.currentLine >= 0){
     
                 context.fillStyle = 'hsl(0, 100%, 0%, 70%)';
                 context.save();
@@ -3670,12 +3945,11 @@ function Game(){
                     }
                 }
     
-                context.fillStyle = textColor;
     
                 // Draw differently depending on player vs non-player vs no image
                 const drawDialogueForPlayer = function(facesImage){
                     context.drawImage(facesImage, (faceNum%4)*faceBitrate, Math.floor(faceNum/4)*faceBitrate, faceBitrate, faceBitrate, globalWorldData.worldX, globalWorldData.worldY+(h*globalWorldData.sizeMod)-96*globalWorldData.sizeMod, 96*globalWorldData.sizeMod, 96*globalWorldData.sizeMod);
-                    applyBlur();
+                    applyBlurAndFade();
     
                     if(dialogue.cinematic !== null && dialogue.cinematic.type === "dysymbolia" && dialogue.cinematic.trialsLeft < 1 && dialogue.cinematic.phaseNum === 3 && !dialogue.cinematic.tooltipsRegistered){
                         if(dialogue.cinematic.info.length > 4){
@@ -3684,6 +3958,7 @@ function Game(){
                             for(let i=0;i<dialogue.cinematic.trialedKanjiIndexes.length;i++){
                                 tooltipTargets.push(kanjiFileData[dialogue.cinematic.trialedKanjiIndexes[i]].symbol);
                             }
+                            context.fillStyle = textColor;
                             drawDialogueText(dialogue,(96+18)*globalWorldData.sizeMod+globalWorldData.worldX, (globalWorldData.worldY+h*globalWorldData.sizeMod-72*globalWorldData.sizeMod),(w*globalWorldData.sizeMod-124*globalWorldData.sizeMod),20*globalWorldData.sizeMod,timeStamp,
                                 {
                                     width: dialogueFontSize, height: 20*globalWorldData.sizeMod,
@@ -3693,6 +3968,7 @@ function Game(){
                             );
                             note = "Hover your mouse over the kanji to review.";
                         } else {
+                            context.fillStyle = textColor;
                             drawDialogueText(dialogue,(96+18)*globalWorldData.sizeMod+globalWorldData.worldX, (globalWorldData.worldY+h*globalWorldData.sizeMod-72*globalWorldData.sizeMod),(w*globalWorldData.sizeMod-124*globalWorldData.sizeMod),20*globalWorldData.sizeMod,timeStamp,
                                 {
                                     width: dialogueFontSize, height: 20*globalWorldData.sizeMod,
@@ -3707,6 +3983,7 @@ function Game(){
                     } else if(dialogue.cinematic !== null && dialogue.cinematic.type === "dysymbolia" && dialogue.cinematic.phaseNum === 5 && dialogue.cinematic.animationFinished && !dialogue.cinematic.tooltipsRegistered){
                         let playerAbilityInfo = playerAbilityData.list[playerAbilityData.acquiringAbility];
                         let abilityInfo = abilityFileData[playerAbilityInfo.index];
+                        context.fillStyle = textColor;
                         drawDialogueText(dialogue,(96+18)*globalWorldData.sizeMod+globalWorldData.worldX, (globalWorldData.worldY+h*globalWorldData.sizeMod-72*globalWorldData.sizeMod),(w*globalWorldData.sizeMod-124*globalWorldData.sizeMod),20*globalWorldData.sizeMod,timeStamp,
                                 {
                                     width: dialogueFontSize, height: 20*globalWorldData.sizeMod,
@@ -3718,6 +3995,7 @@ function Game(){
                         dialogue.cinematic.tooltipsRegistered = true;
                         note = "Hover your mouse over the Japanese text, also this is a wip no judge...";
                     } else {
+                        context.fillStyle = textColor;
                         drawDialogueText(dialogue,(96+18)*globalWorldData.sizeMod+globalWorldData.worldX, (globalWorldData.worldY+h*globalWorldData.sizeMod-72*globalWorldData.sizeMod),(w*globalWorldData.sizeMod-124*globalWorldData.sizeMod),20*globalWorldData.sizeMod,timeStamp);
                     }
                 };
@@ -3726,11 +4004,13 @@ function Game(){
                     context.scale(-1,1);
                     context.drawImage(facesImage, (faceNum%4)*faceBitrate, Math.floor(faceNum/4)*faceBitrate, faceBitrate, faceBitrate, -1*(globalWorldData.worldX+w*globalWorldData.sizeMod), globalWorldData.worldY+h*globalWorldData.sizeMod-96*globalWorldData.sizeMod, 96*globalWorldData.sizeMod, 96*globalWorldData.sizeMod);
                     context.restore();
-                    applyBlur();
+                    applyBlurAndFade();
+                    context.fillStyle = textColor;
                     drawDialogueText(dialogue,(8+18)*globalWorldData.sizeMod+globalWorldData.worldX,globalWorldData.worldY+h*globalWorldData.sizeMod-72*globalWorldData.sizeMod,w*globalWorldData.sizeMod-144*globalWorldData.sizeMod,20*globalWorldData.sizeMod,timeStamp);
                 };
                 const drawDialogueForNobody = function(){
-                    applyBlur();
+                    applyBlurAndFade();
+                    context.fillStyle = textColor;
                     drawDialogueText(dialogue,(8+18)*globalWorldData.sizeMod+globalWorldData.worldX,globalWorldData.worldY+h*globalWorldData.sizeMod-72*globalWorldData.sizeMod,w*globalWorldData.sizeMod-40*globalWorldData.sizeMod,20*globalWorldData.sizeMod,timeStamp);
                 };
                 context.imageSmoothingEnabled = true;
@@ -3774,7 +4054,11 @@ function Game(){
                         context.fillStyle = 'hsl(0, 100%, 100%, 80%)';
                         context.font = `${Math.floor(20*globalWorldData.sizeMod)}px zenMaruRegular`;
                         context.textAlign = 'center';
-                        context.fillText("Enter keyword:", globalWorldData.worldX + w*globalWorldData.sizeMod/2, globalWorldData.worldY + (h-100)*globalWorldData.sizeMod/2);
+                        if(dialogue.scenario.includes("tutorial")){
+                            context.fillText("English meaning:", globalWorldData.worldX + w*globalWorldData.sizeMod/2, globalWorldData.worldY + (h-100)*globalWorldData.sizeMod/2);
+                        } else {
+                            context.fillText("Enter keyword:", globalWorldData.worldX + w*globalWorldData.sizeMod/2, globalWorldData.worldY + (h-100)*globalWorldData.sizeMod/2);
+                        }
     
                         context.fillStyle = "white";
                         context.fillText(globalInputData.textEntered, globalWorldData.worldX + w*globalWorldData.sizeMod/2, globalWorldData.worldY + h*globalWorldData.sizeMod/2);
@@ -3789,7 +4073,11 @@ function Game(){
                         context.fillStyle = 'hsl(0, 100%, 100%, 80%)';
                         context.font = `${Math.floor(20*globalWorldData.sizeMod)}px zenMaruRegular`;
                         context.textAlign = 'center';
-                        context.fillText("Enter keyword:", globalWorldData.worldX + w*globalWorldData.sizeMod/2, globalWorldData.worldY + (h-100)*globalWorldData.sizeMod/2);
+                        if(dialogue.scenario.includes("tutorial")){
+                            context.fillText("English meaning:", globalWorldData.worldX + w*globalWorldData.sizeMod/2, globalWorldData.worldY + (h-100)*globalWorldData.sizeMod/2);
+                        } else {
+                            context.fillText("Enter keyword:", globalWorldData.worldX + w*globalWorldData.sizeMod/2, globalWorldData.worldY + (h-100)*globalWorldData.sizeMod/2);
+                        }
     
                         // Play the animation for dysymbolia text colliding
                         let animationDuration = 300 + 1200 * (!globalWorldData.speedMode);
@@ -3951,7 +4239,7 @@ function Game(){
             context.font = '36px zenMaruRegular';
             context.textAlign = 'center';
             context.fillStyle = 'white';
-            context.fillText(menuScene, globalWorldData.worldX+345 + 150, globalWorldData.worldY+80);
+            context.fillText(globalWorldData.menuScene, globalWorldData.worldX+345 + 150, globalWorldData.worldY+80);
     
             // Each menu tab has its local function
             const drawInventoryScreen = function(){
@@ -3959,7 +4247,15 @@ function Game(){
                 context.fillText("First 5 items can be used on the inventory hotbar!", globalWorldData.worldX+345 + 150, globalWorldData.worldY+580);
                 context.fillText("Double click to use consumables!", globalWorldData.worldX+345 + 150, globalWorldData.worldY+630);
                 context.fillText("Crafting coming soon?!????!??!!?", globalWorldData.worldX+345 + 150, globalWorldData.worldY+680);
+
+                for(let i=0;i<globalMenuTabUiElements.length;i++){
+                    let uiElement = globalMenuTabUiElements[i];
+                    if(uiElement.type === "inventory slot"){
+                        drawInventorySlot(uiElement,playerInventoryData);
+                    }
+               }
   
+               /*
                 for(let i=0;i<Math.ceil(playerInventoryData.inventory.length/5);i++){
                     for(let j=0;j<5;j++){
                         context.lineWidth = 2;
@@ -3978,7 +4274,7 @@ function Game(){
                             context.restore();
                         }
                     }
-                }
+                }*/
     
                 if(draggingObject){
                     let offsetX = globalInputData.mouseX - draggingObject.clickX, offsetY = globalInputData.mouseY - draggingObject.clickY;
@@ -4005,7 +4301,7 @@ function Game(){
                         context.lineWidth = 2;
                         let textFill = 'white';
                         // Change colors based on the kanji info
-                        if(menuData.selectedKanji === currentIndex){
+                        if(globalWorldData.menuData.selectedKanji === currentIndex){
                             context.strokeStyle = 'hsla(60, 100%, 100%, 1)';
                             context.lineWidth = 4;
                             if(!playerKanjiData.kanjiList[currentIndex].enabled){
@@ -4036,11 +4332,9 @@ function Game(){
                 }
     
                 // Draw kanji info on side of screen
-                if(menuData.selectedKanji !== null){
-                    isToDrawStatusBar = false;
-    
-                    let kanjiInfo = kanjiFileData[menuData.selectedKanji];
-                    let playerKanjiInfo = playerKanjiData.kanjiList[menuData.selectedKanji];
+                if(globalWorldData.menuData.selectedKanji !== null){
+                    let kanjiInfo = kanjiFileData[globalWorldData.menuData.selectedKanji];
+                    let playerKanjiInfo = playerKanjiData.kanjiList[globalWorldData.menuData.selectedKanji];
     
                     context.fillStyle = 'hsl(0, 0%, 10%, 55%)';
                     context.save();
@@ -4101,7 +4395,7 @@ function Game(){
                 context.font = '20px ZenMaruRegular';
                 context.textAlign = 'left';
     
-                if(!menuData.isReadingWriteup){
+                if(!globalWorldData.menuData.isReadingWriteup){
                     let listPosition = 0;
                     for(let i=0;i<theoryWriteupData.length;i++){
                         if(!playerTheoryData[i].listed){
@@ -4111,7 +4405,7 @@ function Game(){
                         let theory = theoryWriteupData[i];                     
                         
                         
-                        if(menuData.selectedWriteup === i){
+                        if(globalWorldData.menuData.selectedWriteup === i){
                             context.lineWidth = 4;
                             context.strokeStyle = 'hsla(60, 100%, 100%, 1)';
                         } else {
@@ -4147,7 +4441,7 @@ function Game(){
     
                 } else {
                     context.font = '18px ZenMaruRegular';
-                    let writeupInfo = theoryWriteupData[menuData.selectedWriteup];
+                    let writeupInfo = theoryWriteupData[globalWorldData.menuData.selectedWriteup];
                     let wrappedText = wrapText(context, writeupInfo.pages[writeupInfo.currentPage], globalWorldData.worldY+140, w-55, 20);
                     wrappedText.forEach(function(item) {
                         // item[0] is the text
@@ -4161,10 +4455,8 @@ function Game(){
                     context.fillText("Page "+(writeupInfo.currentPage+1)+"/"+writeupInfo.pages.length, globalWorldData.worldX+(18*TILE_SIZE/2)+215, globalWorldData.worldY+h*globalWorldData.sizeMod-130);
                 }
     
-                if(menuData.selectedWriteup !== null){
-                    isToDrawStatusBar = false;
-    
-                    let writeupInfo = theoryWriteupData[menuData.selectedWriteup];
+                if(globalWorldData.menuData.selectedWriteup !== null){
+                    let writeupInfo = theoryWriteupData[globalWorldData.menuData.selectedWriteup];
     
                     // Right-side box
                     context.fillStyle = 'hsl(0, 0%, 10%, 55%)';
@@ -4252,7 +4544,7 @@ function Game(){
                     context.fillStyle = 'white';
                     context.textAlign = 'center';
                     let rewardText = writeupInfo.rewardText;
-                    if(playerTheoryData[menuData.selectedWriteup].unlocked){
+                    if(playerTheoryData[globalWorldData.menuData.selectedWriteup].unlocked){
                         rewardText+= " (Collected)";
                     }
                     wrappedText = wrapText(context, rewardText, globalWorldData.worldY+currentY+28+38, 240, 18);
@@ -4276,6 +4568,7 @@ function Game(){
                 let currentY = 135;
     
                 // Draw ability bar
+                /*
                 for(let i=0;i<playerAbilityData.abilitySlots;i++){
                     if(playerAbilityData.equippedAbilities[i] !== null && (draggingObject === null || draggingObject.index !== i)){
                         context.drawImage(abilityIcons[ playerAbilityData.list[playerAbilityData.equippedAbilities[i]].index ],globalWorldData.worldX+247+250-playerAbilityData.abilitySlots*25+50*i,globalWorldData.worldY+currentY,45,45);
@@ -4294,6 +4587,12 @@ function Game(){
                         context.fillStyle = 'black';
                         context.fill();
                         context.stroke();
+                    }
+                }*/
+                for(let i=0;i<globalMenuTabUiElements.length;i++){
+                    let uiElement = globalMenuTabUiElements[i];
+                    if(uiElement.type === "ability slot"){
+                        drawAbilitySlot(uiElement,playerAbilityData);
                     }
                 }
     
@@ -4316,7 +4615,7 @@ function Game(){
     
                         context.drawImage(abilityIcons[playerAbilityData.list[currentIndex].index],globalWorldData.worldX+247+250-currentRowWidth*25+50*j,globalWorldData.worldY+currentY+70+50*i,45,45);
     
-                        if(menuData.selectedAbility === currentIndex){
+                        if(globalWorldData.menuData.selectedAbility === currentIndex){
                             context.strokeStyle = 'hsla(60, 100%, 100%, 1)';
                             context.lineWidth = 3;
                         } else {
@@ -4331,11 +4630,9 @@ function Game(){
                     }
                 }
     
-                if(menuData.selectedAbility !== null){
+                if(globalWorldData.menuData.selectedAbility !== null){
                     // Draw ability information on the right side
-                    isToDrawStatusBar = false;
-    
-                    let playerAbilityInfo = playerAbilityData.list[menuData.selectedAbility];
+                    let playerAbilityInfo = playerAbilityData.list[globalWorldData.menuData.selectedAbility];
                     let abilityInfo = abilityFileData[playerAbilityInfo.index];
     
                     // Right-side box
@@ -4412,7 +4709,7 @@ function Game(){
                             context.fillText("Drag to Equip!", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, globalWorldData.worldY+710);
                         } else {
                             context.font = '14px zenMaruMedium';
-                            context.fillText("Cannot (yet) equip mid-combat.", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, globalWorldData.worldY+710);
+                            context.fillText("Cannot equip mid-combat.", globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+30 + 150, globalWorldData.worldY+710);
                         }
                         
                     }
@@ -4425,8 +4722,8 @@ function Game(){
             } // Draw ability screen function ends here
 
             const drawSaveScreen = function(){
-                if(menuData.loadStatement !== null){
-                    let ls = menuData.loadStatement;
+                if(globalWorldData.menuData.loadStatement !== null){
+                    let ls = globalWorldData.menuData.loadStatement;
 
                     context.font = '18px zenMaruRegular';
                     context.fillText("Welcome back to the world of unnamed kanji game!", globalWorldData.worldX+345 + 150, globalWorldData.worldY+140);
@@ -4435,20 +4732,20 @@ function Game(){
                 }
             } // Draw save screen function ends here
     
-            if(menuScene === "Inventory"){
+            if(globalWorldData.menuScene === "Inventory"){
                 drawInventoryScreen();
-            } else if(menuScene === "Kanji List"){
+            } else if(globalWorldData.menuScene === "Kanji List"){
                 drawKanjiScreen();
-            } else if(menuScene === "Theory"){
+            } else if(globalWorldData.menuScene === "Theory"){
                 drawTheoryScreen();
-            } else if(menuScene === "Abilities"){
+            } else if(globalWorldData.menuScene === "Abilities"){
                 drawAbilityScreen();
-            } else if(menuScene === "Save"){
+            } else if(globalWorldData.menuScene === "Save"){
                 drawSaveScreen();
             }
         }
     
-        if(menuScene !== null){
+        if(globalWorldData.menuScene !== null){
             drawMenuScreen();
         } else {
             drawWorldScreen();
@@ -4482,7 +4779,7 @@ function Game(){
                 let fontSize = Math.floor(16*globalWorldData.sizeMod);
                 context.font = `${fontSize}px zenMaruRegular`;
     
-                if(menuScene !== null){
+                if(globalWorldData.menuScene !== null){
                     context.fillText(logItem.text,globalWorldData.worldX+w*globalWorldData.sizeMod/2,globalWorldData.worldY+h*globalWorldData.sizeMod+64*globalWorldData.sizeMod-(fontSize+5)*logItemsDrawn);
                 } else if(dialogue){
                     context.fillText(logItem.text,globalWorldData.worldX+w*globalWorldData.sizeMod/2,globalWorldData.worldY+h*globalWorldData.sizeMod-108*globalWorldData.sizeMod-(fontSize+5)*logItemsDrawn);
@@ -4502,7 +4799,7 @@ function Game(){
         }
     
         // Draw the right part of the screen
-        if(isToDrawStatusBar){
+        if(globalWorldData.sidebar === "status"){
             context.fillStyle = 'hsl(0, 0%, 10%, 55%)';
             context.save();
             context.shadowColor = "hsl(0, 30%, 0%)";
@@ -4586,7 +4883,7 @@ function Game(){
                 }
                 context.font = '18px zenMaruMedium';
     
-                if( (conditionLine + cInfo.name).length > "Conditions: Dysymbolia, Hunger, aaa".length){
+                if( (conditionLine + cInfo.name).length > "Conditions: Dysymbolia, Hunger, aa".length){
                     conditionLine = "";
                     conditionLineNum++;
                 }
@@ -4718,8 +5015,9 @@ function Game(){
 
         handleDraggingObject = undefined;
         draggingObject = null;
+        globalWorldData.sidebar = "status";
 
-        if(menuScene === "Inventory"){
+        if(globalWorldData.menuScene === "Inventory"){
             updateInventory(playerInventoryData,"none",true);
 
             handleDraggingObject = function(action){
@@ -4778,7 +5076,8 @@ function Game(){
                     draggingObject = null;
                 }
             }
-        } else if(menuScene === "Kanji List"){
+        } else if(globalWorldData.menuScene === "Kanji List"){
+            globalWorldData.sidebar = "kanji";
             let rowAmount = 12;
             for(let i=0;i<Math.ceil(kanjiFileData.length/rowAmount);i++){
                 for(let j=0; j<Math.min(rowAmount,kanjiFileData.length-i*rowAmount);j++){
@@ -4797,11 +5096,11 @@ function Game(){
                 neutralColor: '#b3b3ff', hoverColor: '#e6e6ff', pressedColor: '#ff66ff', color: '#b3b3ff',
                 text: "Toggle Enabled Status", font: '13px zenMaruRegular', fontSize: 18, enabled: true, temporaryMenuButton: true,
                 onClick: function(){
-                    playerKanjiData.kanjiList[menuData.selectedKanji].enabled = !playerKanjiData.kanjiList[menuData.selectedKanji].enabled;
+                    playerKanjiData.kanjiList[globalWorldData.menuData.selectedKanji].enabled = !playerKanjiData.kanjiList[globalWorldData.menuData.selectedKanji].enabled;
                 }
             });
-        } else if(menuScene === "Theory"){
-
+        } else if(globalWorldData.menuScene === "Theory"){
+            globalWorldData.sidebar = "theory";
             for(let i=0, listedNum=0;i<theoryWriteupData.length;i++){
                 if(!theoryWriteupData[i].hasOwnProperty("listRequirements")){
                     playerTheoryData[i].listed = true;
@@ -4821,15 +5120,15 @@ function Game(){
                 playerTheoryData[i].conditionsMet = evaluateUnlockRequirements(playerAbilityData, playerTheoryData, theoryWriteupData[i].unlockRequirements);
             }
 
-            if(menuData.isReadingWriteup){
-                let writeupInfo = theoryWriteupData[menuData.selectedWriteup];
+            if(globalWorldData.menuData.isReadingWriteup){
+                let writeupInfo = theoryWriteupData[globalWorldData.menuData.selectedWriteup];
 
                 buttons.push({
                     x:globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+132, y:globalWorldData.worldY+700, width:100, height:30,
                     neutralColor: '#b3b3ff', hoverColor: '#e6e6ff', pressedColor: '#ff66ff', color: '#b3b3ff',
                     text: "Stop Reading", font: '13px zenMaruRegular', fontSize: 18, enabled: true, temporaryMenuButton: true,
                     onClick: function(){
-                        menuData.isReadingWriteup = false;
+                        globalWorldData.menuData.isReadingWriteup = false;
                         initializeMenuTab();
                     }
                 });
@@ -4840,7 +5139,7 @@ function Game(){
                         neutralColor: '#b3b3ff', hoverColor: '#e6e6ff', pressedColor: '#ff66ff', color: '#b3b3ff', radius:1,
                         text: "<", font: '30px zenMaruRegular', fontSize: 30, enabled: true, temporaryMenuButton: true,
                         onClick: function(){
-                            theoryWriteupData[menuData.selectedWriteup].currentPage--;
+                            theoryWriteupData[globalWorldData.menuData.selectedWriteup].currentPage--;
                             initializeMenuTab();
                         }
                     });
@@ -4852,32 +5151,32 @@ function Game(){
                         neutralColor: '#b3b3ff', hoverColor: '#e6e6ff', pressedColor: '#ff66ff', color: '#b3b3ff', radius:1,
                         text: ">", font: '30px zenMaruRegular', fontSize: 30, enabled: true, temporaryMenuButton: true,
                         onClick: function(){
-                            theoryWriteupData[menuData.selectedWriteup].currentPage++;
+                            theoryWriteupData[globalWorldData.menuData.selectedWriteup].currentPage++;
                             initializeMenuTab();
                         }
                     });
                 }
             } else {
-                if(playerTheoryData[menuData.selectedWriteup].unlocked){
+                if(playerTheoryData[globalWorldData.menuData.selectedWriteup].unlocked){
                     buttons.push({
                         x:globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+157, y:globalWorldData.worldY+700, width:50, height:30,
                         neutralColor: '#b3b3ff', hoverColor: '#e6e6ff', pressedColor: '#ff66ff', color: '#b3b3ff',
                         text: "Read", font: '13px zenMaruRegular', fontSize: 18, enabled: true, temporaryMenuButton: true,
                         onClick: function(){
-                            menuData.isReadingWriteup = true;
+                            globalWorldData.menuData.isReadingWriteup = true;
                             initializeMenuTab();
                         }
                     });
-                } else if(playerTheoryData[menuData.selectedWriteup].conditionsMet){
+                } else if(playerTheoryData[globalWorldData.menuData.selectedWriteup].conditionsMet){
                     buttons.push({
                         x:globalWorldData.worldX+18*16*globalWorldData.sizeMod*2+98, y:globalWorldData.worldY+700, width:170, height:30,
                         neutralColor: '#ff6', hoverColor: '#ffffb3', pressedColor: '#66f', color: '#ff6',
                         text: "Unlock and Collect Reward", font: '13px zenMaruRegular', fontSize: 18, enabled: true, temporaryMenuButton: true,
                         onClick: function(){
-                            let theoryNum = menuData.selectedWriteup;
+                            let theoryNum = globalWorldData.menuData.selectedWriteup;
                             if(playerTheoryData[theoryNum].conditionsMet){
                                 playerTheoryData[theoryNum].unlocked = true;
-                                menuData.isReadingWriteup = true;
+                                globalWorldData.menuData.isReadingWriteup = true;
                                 for(let i in theoryWriteupData[theoryNum].unlockRewards){
                                     awardPlayer(playerInventoryData,theoryWriteupData[theoryNum].unlockRewards[i],performance.now());
                                 }
@@ -4887,7 +5186,8 @@ function Game(){
                     });
                 }
             }
-        } else if(menuScene === "Abilities"){
+        } else if(globalWorldData.menuScene === "Abilities"){
+            globalWorldData.sidebar = "ability";
             updatePlayerAbilityList(playerAbilityData);
             let playerAbilityList = playerAbilityData.list;
 
@@ -4905,7 +5205,7 @@ function Game(){
                 }
             }
 
-            let playerAbilityInfo = playerAbilityList[menuData.selectedAbility];
+            let playerAbilityInfo = playerAbilityList[globalWorldData.menuData.selectedAbility];
             let abilityInfo = abilityFileData[playerAbilityInfo.index];
             if(!playerAbilityInfo.acquired && playerAbilityInfo.unlocked && playerStatData.power >= abilityInfo.acquisitionPower){
                 buttons.push({
@@ -4931,16 +5231,16 @@ function Game(){
 
             handleDraggingObject = function(action){
                 if(action==="mousedown"){
-                    if(currentTooltip && tooltipBoxes[currentTooltip.index].type === "ability menu ability" && playerAbilityData.acquiredAbilities[playerAbilityData.list[tooltipBoxes[currentTooltip.index].index].name]){
-                        menuData.selectedAbility = tooltipBoxes[currentTooltip.index].index;
+                    if(currentTooltip && currentTooltip.info.type === "ability menu ability" && playerAbilityData.acquiredAbilities[playerAbilityData.list[currentTooltip.info.index].name]){
+                        globalWorldData.menuData.selectedAbility = currentTooltip.info.index;
                         initializeMenuTab();
                         draggingObject = {
-                            originalX: tooltipBoxes[currentTooltip.index].x,
-                            originalY: tooltipBoxes[currentTooltip.index].y,
+                            originalX: currentTooltip.info.x,
+                            originalY: currentTooltip.info.y,
                             clickX: globalInputData.mouseX,
                             clickY: globalInputData.mouseY,
                             type: "ability",
-                            abilityIndex: tooltipBoxes[currentTooltip.index].index, //todo: make a system that replaces the tooltipbox "hack" with something more informative, decoupled, and useful
+                            abilityIndex: currentTooltip.info.index, //todo: finish refactoring this stuff by utilizing the new ui system to make this make more sense
                             source: "ability list"
                         }
                     } else {
@@ -4953,7 +5253,7 @@ function Game(){
                             };
                             if (globalInputData.mouseX >= box.x && globalInputData.mouseX <= box.x + box.width && globalInputData.mouseY >= box.y && globalInputData.mouseY <= box.y + box.height) {
                                 if(playerAbilityData.equippedAbilities[i] !== null){
-                                    menuData.selectedAbility = playerAbilityData.equippedAbilities[i];
+                                    globalWorldData.menuData.selectedAbility = playerAbilityData.equippedAbilities[i];
                                     initializeMenuTab();
                                     draggingObject = {
                                         originalX: box.x,
@@ -4983,13 +5283,13 @@ function Game(){
                         };
                         if (globalInputData.mouseX >= box.x && globalInputData.mouseX <= box.x + box.width && globalInputData.mouseY >= box.y && globalInputData.mouseY <= box.y + box.height) {
                             if(i !== draggingObject.index){
-                                equipAbility(playerAbilityData,playerStatData,i,draggingObject.abilityIndex);
+                                equipAbility(playerConditions,playerAbilityData,playerStatData,i,draggingObject.abilityIndex);
                             }
                             draggingObject = null;
                             return;
                         }
                     }
-                    unequipAbility(playerAbilityData,playerStatData,draggingObject.index,draggingObject.abilityIndex);
+                    unequipAbility(playerConditions,playerAbilityData,playerStatData,draggingObject.index,draggingObject.abilityIndex);
                     draggingObject = null;
                 }
             }
@@ -4998,14 +5298,14 @@ function Game(){
                 draggingObject = null
             }
 
-        } else if(menuScene === "Save") {
-            if(menuData.loadStatement !== null){
+        } else if(globalWorldData.menuScene === "Save") {
+            if(globalWorldData.menuData.loadStatement !== null){
                 buttons.push({
                     x:globalWorldData.worldX+247+140, y:globalWorldData.worldY+370+300, width:200, height:35,
                     neutralColor: '#b3b3ff', hoverColor: '#e6e6ff', pressedColor: '#ff66ff', color: '#b3b3ff',
                     text: "Close Load Statement", font: '17px zenMaruRegular', fontSize: 17, enabled: true, temporaryMenuButton: true,
                     onClick: function(){
-                        menuData.loadStatement = null;
+                        globalWorldData.menuData.loadStatement = null;
                         initializeMenuTab();
                     }
                 });
@@ -5123,8 +5423,8 @@ function Game(){
             dialogue = save.dialogue;
             combat = save.combat;
             globalWorldData.levelNum = save.levelNum;
-            menuData.selectedAbility = 0;
-            menuData.selectedWriteup = 0;
+            globalWorldData.menuData.selectedAbility = 0;
+            globalWorldData.menuData.selectedWriteup = 0;
             
             timeUntilDysymbolia = save.timeUntilDysymbolia;
 
@@ -5203,7 +5503,7 @@ function Game(){
             let minuteRemainder = Math.floor(dateDifference%(1000 * 60 * 60)/(1000 * 60));
 
             // Create the load statement
-            menuData.loadStatement = {
+            globalWorldData.menuData.loadStatement = {
                 dayDifference: dayDifference,
                 hourRemainder: hourRemainder,
                 minuteRemainder: minuteRemainder,
@@ -5222,8 +5522,8 @@ function Game(){
 
     // called on button press. toggles menu and returns "closed menu" or "opened menu"
     this.handleMenuButtonPress = function(){
-        if(menuScene === null){
-            menuScene = "Inventory";
+        if(globalWorldData.menuScene === null){
+            globalWorldData.menuScene = "Inventory";
             globalWorldData.gameClockOfLastPause = globalWorldData.currentGameClock;
             for(let i in buttons){
                 let b = buttons[i];
@@ -5238,7 +5538,7 @@ function Game(){
 
             return "opened menu";
         } else {
-            menuScene = null;
+            globalWorldData.menuScene = null;
             globalWorldData.timeOfLastUnpause = performance.now();
             for(let i = buttons.length-1;i>=0;i--){
                 let b = buttons[i];
@@ -5253,6 +5553,7 @@ function Game(){
             }
             handleDraggingObject = undefined;
             draggingObject = null;
+            globalWorldData.sidebar = "status";
             updateInventory(playerInventoryData);
 
             return "closed menu";
@@ -5260,7 +5561,7 @@ function Game(){
     };
 
     this.handleMenuTabButtonPress = function(tab){
-        menuScene = tab;
+        globalWorldData.menuScene = tab;
         initializeMenuTab();
     };
 
@@ -5279,6 +5580,32 @@ function Game(){
             }
         }
 
+        const checkTooltipOfUiElement = function(uiElement){
+            if(uiElement.type === "inventory slot"){
+                let t = uiElement.tooltip;
+                t.item = playerInventoryData.inventory[t.inventoryIndex];
+
+                if (t.item !== "none" &&
+                    mouseX >= t.x &&         // right of the left edge AND
+                    mouseX <= t.x + t.width &&    // left of the right edge AND
+                    mouseY >= t.y &&         // below the top AND
+                    mouseY <= t.y + t.height) {    // above the bottom
+                        currentTooltip = {timeStamp: performance.now(), info: t};
+                }
+            } else if(uiElement.type === "ability slot"){
+                let t = uiElement.tooltip;
+                t.ability = playerAbilityData.equippedAbilities[t.slotNum];
+
+                if (typeof t.ability === "number" &&
+                    mouseX >= t.x &&         // right of the left edge AND
+                    mouseX <= t.x + t.width &&    // left of the right edge AND
+                    mouseY >= t.y &&         // below the top AND
+                    mouseY <= t.y + t.height) {    // above the bottom
+                        currentTooltip = {timeStamp: performance.now(), info: t};
+                }
+            }
+        }
+
         if(currentTooltip === null){
             //check if we hovered over a tooltip
             for (let i=0;i<tooltipBoxes.length;i++) {
@@ -5287,11 +5614,21 @@ function Game(){
                 mouseX <= t.x + t.width &&    // left of the right edge AND
                 mouseY >= t.y &&         // below the top AND
                 mouseY <= t.y + t.height) {    // above the bottom
-                    currentTooltip = {timeStamp: performance.now(), index: i};
+                    currentTooltip = {timeStamp: performance.now(), info: t};
+                }
+            }
+            if(globalWorldData.menuScene === "Inventory"){
+                for (let i=0;i<globalMenuTabUiElements.length;i++) {
+                    checkTooltipOfUiElement(globalMenuTabUiElements[i]);
+                }
+            }
+            if(globalWorldData.sidebar === "status"){
+                for (let i=0;i<globalStatusBarUiElements.length;i++) {
+                    checkTooltipOfUiElement(globalStatusBarUiElements[i]);
                 }
             }
         } else {
-            let t = tooltipBoxes[currentTooltip.index];
+            let t = currentTooltip.info;
             //check if we are still hovering
             if (mouseX >= t.x &&         // right of the left edge AND
             mouseX <= t.x + t.width &&    // left of the right edge AND
@@ -5504,8 +5841,8 @@ function Game(){
 
         // Draw tooltip over everything else
         if(currentTooltip !== null){
-            if(timeStamp - currentTooltip.timeStamp > tooltipBoxes[currentTooltip.index].spawnTime){
-                drawTooltip();
+            if(timeStamp - currentTooltip.timeStamp > currentTooltip.info.spawnTime){
+                drawTooltip(currentTooltip.info);
             }
         }
 
@@ -5595,6 +5932,34 @@ Player Src: ${playerWorldData.src}
         }
     }
 
+    // Initialize cloud layer
+    for(let i=0; i<levels[0].gridHeight+1;i++){
+        clouds.push([]);
+        for(let j=0; j<levels[0].gridWidth+1;j++){
+            // If cloud num is 0 its a blank white cloud, if its 1-4 its one of the 4
+            let cloudNum = 0;
+            let cloudSrc = [32*4,32*4];
+            if(Math.random() > 0.6){
+                cloudNum = Math.floor(Math.random()*4+1);
+                if(cloudNum === 1){
+                    cloudSrc = [32,32*5];
+                }
+                if(cloudNum === 2){
+                    cloudSrc = [64,32*5];
+                }
+                if(cloudNum === 3){
+                    cloudSrc = [32,32*6];
+                }
+                if(cloudNum === 4){
+                    cloudSrc = [64,32*6];
+                }
+            }
+
+            
+            clouds[i].push(cloudSrc);
+        }
+    }
+
     // Initialize!
     initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityData,playerStatData,playerConditions);
     dialogue = initializeDialogue("scenes","opening scene",performance.now());
@@ -5614,7 +5979,7 @@ Player Src: ${playerWorldData.src}
             45,
             45,
             [],
-            {type: "item", spawnTime: 0}
+            {type: "item", spawnTime: 0, inventoryIndex: i}
         );
         uiElement.slotNum = i;
         globalStatusBarUiElements.push(uiElement);
@@ -5630,12 +5995,45 @@ Player Src: ${playerWorldData.src}
             45,
             45,
             [],
-            {type: "ability", spawnTime: 0}
+            {type: "ability", spawnTime: 500, slotNum: i}
         );
         uiElement.slotNum = i;
         globalStatusBarUiElements.push(uiElement);
     }
-    
+
+    // menu inventory
+    for(let i=0;i<Math.ceil(playerInventoryData.inventory.length/5);i++){
+        for(let j=0;j<5;j++){
+            let uiElement = createUiElement(
+                "menu inventory slot " + i,
+                "inventory slot",
+                globalWorldData.worldY+285+105+67*j,
+                globalWorldData.worldY+160 + 67*i,
+                60,
+                60,
+                [],
+                {type: "item", spawnTime: 0, inventoryIndex: j + i*5}
+            );
+            uiElement.slotNum = j + i*5;
+            globalMenuTabUiElements.push(uiElement);
+        }
+    }
+
+    //menu abilities
+    for(let i=0;i<playerAbilityData.abilitySlots;i++){
+        let uiElement = createUiElement(
+            "menu ability slot " + i,
+            "ability slot",
+            globalWorldData.worldX+247+250-playerAbilityData.abilitySlots*25+50*i,
+            globalWorldData.worldY+135,
+            45,
+            45,
+            [],
+            {type: "ability", spawnTime: 0}
+        );
+        uiElement.slotNum = i;
+        globalMenuTabUiElements.push(uiElement);
+    }
 }
 
 // Loop that waits for assets and starts game
@@ -5710,7 +6108,7 @@ function init(){
 
         characterSpritesheets[c] = spritesheet;
         characterFaces[c] = faces;
-        if(c === "lizard"){
+        if(c === "lizard" || c === "hiddenone_spider"){
             characterBitrates[c] = 48;
         } else {
             characterBitrates[c] = 32;
@@ -5728,15 +6126,15 @@ function init(){
     miscImages.gold = new Image();
     miscImages.gold.src = `/assets/some ui/gold-coins.png`;
     miscImages.gun = new Image();
-    miscImages.gun.src = `/assets/Snoopeth's Guns/1px/33.png`
+    miscImages.gun.src = `/assets/Snoopeth's Guns/1px/33.png`;
     miscImages.blueberry = new Image();
-    miscImages.blueberry.src = `/assets/Sprout Lands 32/bberry.png`
+    miscImages.blueberry.src = `/assets/Sprout Lands 32/bberry.png`;
     miscImages.yellowberry = new Image();
-    miscImages.yellowberry.src = `/assets/Sprout Lands 32/yberry.png`
+    miscImages.yellowberry.src = `/assets/Sprout Lands 32/yberry.png`;
     miscImages.bbush = new Image();
-    miscImages.bbush.src = `/assets/Sprout Lands 32/bbush.png`
+    miscImages.bbush.src = `/assets/Sprout Lands 32/bbush.png`;
     miscImages.ybush = new Image();
-    miscImages.ybush.src = `/assets/Sprout Lands 32/ybush.png`
+    miscImages.ybush.src = `/assets/Sprout Lands 32/ybush.png`;
 
     // Get a reference to the canvas
     canvas = document.getElementById('canvas');

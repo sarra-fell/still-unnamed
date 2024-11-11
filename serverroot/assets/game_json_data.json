@@ -132,10 +132,12 @@
                         "face": "player",
                         "faceNum": 9,
                         "areaChange": "Floating_Island_Dungeon_0",
-                        "connectionId": "first",
-                        "takeEnemyTurn": 1
+                        "connectionId": "first"
+                        
                     },
-                    {}
+                    {
+                        "takeEnemyTurn": 1
+                    }
                 ]
             },
             "tutorial dungeon scene 2": {
@@ -408,14 +410,41 @@
                     },
                     {
                         "face": "player",
-                        "faceNum": 0,
-                        
+                        "faceNum": 0,  
                         "textSpeed": 40
                     },
                     {
                         "takeBerries": true,
                         "face": "player",
                         "faceNum": 15
+                    }
+                ]
+            },
+            "berry_bush_dysymbolia_growth_activation": {
+                "textLines": [
+                    "First, I need to channel power.",
+                    "",
+                    "I grew a berry?"
+                ],
+                "lineInfo": [
+                    {
+                        "face": "player",
+                        "faceNum": 9
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 9,
+                        "randomDysymbolia": 4,
+                        "particleSystem": {
+                            "hue": [0], "saturation": [30], "lightness": [80],
+                            "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
+                            "particleSize": 4, "particleLifespan": 1400, "particleSpeed": 20
+                        }
+                    },
+                    {
+                        "face": "player",
+                        "faceNum": 3,
+                        "berryGacha": true
                     }
                 ]
             }
@@ -445,7 +474,7 @@
                     {
                         "face": "player",
                         "faceNum": 9,
-                        "randomDysymbolia": true,
+                        "randomDysymbolia": 5,
                         "particleSystem": {
                             "hue": [0], "saturation": [30], "lightness": [80],
                             "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
@@ -467,7 +496,7 @@
                     {
                         "face": "player",
                         "faceNum": 9,
-                        "randomDysymbolia": true,
+                        "randomDysymbolia": 5,
                         "particleSystem": {
                             "hue": [0], "saturation": [30], "lightness": [80],
                             "particlesPerSec": 15, "drawParticles": 0, "newParticle": 1,
@@ -549,7 +578,7 @@
                         "face": "player",
                         "faceNum": 14,
                         "abilityAcquisition": true,
-                        "normalTrials": 5,
+                        "normalTrials": 4,
                         "specialTrials": 1,
                         "particleSystem": {
                             "hue": [0], "saturation": [30], "lightness": [80],
@@ -706,6 +735,22 @@
                     }
                 ]
             }
+        },
+        "death": {
+            "standard": {
+                "textLines": [
+                    "                                                  You have died."
+                ],
+                "lineInfo": [
+                    {
+                        "textSpeed": 6,
+                        "fadeout": {
+                            "duration": 3500,
+                            "isSkippable": false
+                        }
+                    }
+                ]
+            }
         }
     },
     "kanji": [
@@ -737,7 +782,7 @@
         {
             "symbol": "八",
             "keyword": "Eight",
-            "story": "It's upside down, and crossed european style, but definitely a 7."
+            "story": "'Hachi' (eight) begins with the sound of the katakana 'ha', and it's approximately the same character."
         },
         {
             "symbol": "四",
@@ -747,12 +792,7 @@
         {
             "symbol": "西",
             "keyword": "West",
-            "story": "The one is written sideways."
-        },
-        {
-            "symbol": "匹",
-            "keyword": "Crude",
-            "story": "If you use a crude approximation of pi, the circle doesn't go all the way around."
+            "story": "One of the four directions: The West."
         },
         {
             "symbol": "六",
@@ -777,7 +817,7 @@
         {
             "symbol": "力",
             "keyword": "Power",
-            "story": "A left hand pressing downward so powerfully that the fingers are bent back."
+            "story": "Imagine a powerful Kaboom! With emphasis on the Ka, just like the katakana character for ka."
         },
         {
             "symbol": "万",
@@ -895,11 +935,6 @@
             "story": "The big person is trying to show how big the heavens are, but it's above them and bigger than their arms can show."
         },
         {
-            "symbol": "夭",
-            "keyword": "Early Death",
-            "story": "When the heavens are out of joint, something terrible will happen."
-        },
-        {
             "symbol": "林",
             "keyword": "Woods",
             "story": "Some trees in the woods."
@@ -973,6 +1008,22 @@
             "symbol": "生",
             "keyword": "Life",
             "story": "Basic character. I see it as a pictograph of a sprout growing up from the ground, symbolizing fresh life."
+        },
+        {
+            "symbol": "欠",
+            "keyword": "Lack",
+            "story": "It's a picture of a baby bird with its beak open, lacking food."
+        },
+        {
+            "symbol": "次",
+            "keyword": "Next",
+            "story": "Lacking ice: you've finished your drink and even chewed up the ice cubes. It's completely gone, order the next."
+            
+        },
+        {
+            "symbol": "虫",
+            "keyword": "Insect",
+            "story": "I see the bottom of this kanji as an arm, and the top is an insect biting into the arm, sucking some blood."
         }
     ],
     "theory": [
@@ -997,7 +1048,7 @@
             ],
             "currentPage": 0,
             "pages": [
-                " Welcome to currently unnamed kanji learning game! Let's review the basic controls: \n \n Use the arrow keys to move around. Press Z to interact with things in front of you. Try interacting with a lot of things! Hover your mouse over items and conditions for information on them. You might have to use the rest of your keyboard to type at times. I wonder what that dysymbolia thing is all about? \n \n Hope you liked those 5 gems I gave you, they are very pretty. If you want more, try unlocking more theory pages! I explain what this theory tab is all about in the next page. You could read it if you want. Or you could just grab the gems and leave without reading it, I won't judge (maybe just a little bit). \n \n - Sarracenia"
+                " Welcome to currently unnamed kanji learning game! Let's review the basic controls: \n \n Use the arrow keys to move around. Press C to interact with things in front of you. Try interacting with a lot of things! Hover your mouse over items, conditions, abilities, and more for information on them. You might have to use the rest of your keyboard to type at times; I wonder what that dysymbolia thing is all about? \n \n Hope you liked those 5 gems I gave you, they are very pretty. If you want more, try unlocking more theory pages! I explain what this theory tab is all about in the next page, you could read it if you want. Or you could just grab the gems and leave without reading it, I won't judge (maybe just a little bit). \n \n - Sarracenia"
             ]
         },
         {
@@ -1155,6 +1206,7 @@
             "name": "Basic Dysymbolia Mastery",
             "jpName": "ディシンボリアの基本制御",
             "jpNameWithSeperators": "ディシンボリア+の+基本+制御",
+            "tooltipDescription": " - 2x Dysymbolia Time \n - +10% Curse Resistence \n - No activatable effect",
             "description": " Through experience with how it works and exerting some internal control, you are able to tame your dysymbolia a little. \n \n Equipping this passive ability increases your curse resistance by 10% and doubles the time between automatic dysymbolia triggers, but more importantly, after acquiring this ability, you can trigger dysymbolia by clicking the dysymbolia condition without even equpping this.",
             "types": [
                 "passive",
@@ -1191,6 +1243,7 @@
             "name": "Suppress Dysymbolia",
             "jpName": "ディシンボリア封じ",
             "jpNameWithSeperators": "ディシンボリア+封じ",
+            "tooltipDescription": " - Dysymbolia Gone \n - -10% Max HP \n - Disabiling Abilities \n - No activatable effect",
             "description": " Equipping this removes the dysymbolia condition, reduces your max HP by 10%, and disables all dysymbolia abilities, until it is unequipped.",
             "types": ["passive"],
             "equippedModifiers": [
@@ -1230,6 +1283,7 @@
             "name": "Body Strengthen",
             "jpName": "身体強化",
             "jpNameWithSeperators": "身体+強化",
+            "tooltipDescription": " - +20% Max Hp \n - +50% Basic Attack Strength \n - No activatable effect",
             "description": " Channel your power towards strengthening your physical abilities. \n \n When equipped, increases your max hp by 20% and your basic attack strength by 50%. Also, just having it acquired increases your base attack damage by 1.",
             "types": ["passive", "static"],
             "equippedModifiers": [
@@ -1287,7 +1341,8 @@
             "name": "Limit Break",
             "jpName":"限界突破",
             "jpNameWithSeperators":"限界+突破",
-            "description": " Channel your dysymbolia power in on itself and use it to increase your maximum dysymbolia power.",
+            "tooltipDescription": " - No activatable effect",
+            "description": " Channel your power in on itself and use it to increase your maximum power.",
             "types": ["static"],
             "staticEffects": [
                 {
@@ -1320,6 +1375,7 @@
         },
         {
             "name": "Dysymbolia Touch",
+            "tooltipDescription": " - Activate in combat to deal damage based on a channel result",
             "description": " You managed to power up your touch at least. \n \n -Channel 2-, then deal damage based on the result.",
             "types": ["active", "combat", "dysymbolia"],
             "activeEffects": [
@@ -1349,6 +1405,7 @@
             "name": "Dysymbolia-induced Growth",
             "jpName":"ディシンボリア超生長",
             "jpNameWithSeperators":"ディシンボリア+超+生長",
+            "tooltipDescription": " - Activate on a berry bush to channel and grow berries",
             "description": " Only seems to work on some plants and has unusual results, not like natural growth. But it may be helpful? \n \n -Channel 4-, then attempt to induce growth in a plant. A better channel result will lead to a greater likelihood of getting a rarer or more desirable growth result.",
             "types": ["active", "dysymbolia"],
             "activeEffects": [
@@ -1398,42 +1455,45 @@
             "desc": "Some berries you found on the floating island. They don't look like much but they are the best berries you have ever tasted. Heals $healAmount$ HP when consumed and fills you up a little.",
             "type": "Consumable",
             "color": "red",
-            "subtypes": ["food","fruit"],
+            "subtypes": ["food","fruit","berry"],
             "stack": true,
             "imageInfo": ["tile",0,[128,96],0.9],
             "effectList": ["heal","satiate"],
             "effects": {
                 "healAmount": 10,
                 "satiation": "small"
-            }
+            },
+            "gachaRarity": 1
         },
         {
             "name": "Blue Berries",
             "desc": "Not to be confused with blueberries. Halves the damage of the next hit you take, to a maximum of 20 damage prevented.",
             "type": "Consumable",
             "color": "blue",
-            "subtypes": ["food","fruit"],
+            "subtypes": ["food","fruit","berry"],
             "stack": true,
             "imageInfo": ["blueberry"],
             "effectList": ["heal","satiate"],
             "effects": {
                 "healAmount": 10,
                 "satiation": "small"
-            }
+            },
+            "gachaRarity": 3
         },
         {
             "name": "Yellow Berries",
             "desc": "Tastes a little funny but maybe you could get used to it. Decreases the time remaining on your temporary negative conditions.",
             "type": "Consumable",
             "color": "#909023",
-            "subtypes": ["food","fruit"],
+            "subtypes": ["food","fruit","berry"],
             "stack": true,
             "imageInfo": ["yellowberry"],
             "effectList": ["heal","satiate"],
             "effects": {
                 "healAmount": 10,
                 "satiation": "small"
-            }
+            },
+            "gachaRarity": 3
         },
         {
             "name": "Some Gun",
@@ -1466,9 +1526,9 @@
             "desc": "Character is hungry. Healing from most non-food sources is reduced.",
             "unique": true
         },
-        
         {
             "name": "Lizard Toxin",
+            "jpName": "リザード毒",
             "color": "#4f0",
             "desc": "Character poisoned with a small lizards' toxin. It doesn't make you feel *too* sick and wears off quickly but care still advised. Losing a small amount of HP and brings character closer to hunger. $turnsLeft$ turns left.",
             "unique": false
@@ -1499,11 +1559,34 @@
                     "text": "Green Lizard used its toxic tongue dealing {damage} damage and poisoning Mari!"
                 }
             ],
+            "receivingRegularAttackMessage": "stomped the lizard",
             "aiInfo": {
+                "chaseStyle": "simple",
                 "type": "random",
                 "pool": [0,0,1]
             },
             "kanji": ["四","刃","小"]
+        },
+        {
+            "name": "Scary Spider",
+            "jpName": "強い蜘蛛",
+            "color": "#ff425f",
+            "hp": 150,
+            "actions": [
+                {
+                    "name": "bite",
+                    "power": 20,
+                    "animation": 0,
+                    "text": "Scary Spider bit Mari dealing {damage} damage!"
+                }
+            ],
+            "receivingRegularAttackMessage": "stomped on the spider",
+            "aiInfo": {
+                "chaseStyle": "doesn't chase",
+                "type": "random",
+                "pool": [0]
+            },
+            "kanji": []
         }
     ]
 }

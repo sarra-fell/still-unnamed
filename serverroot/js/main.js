@@ -920,7 +920,7 @@ function randomUnitVector(mod=1,shift=0) {
 *
 *        I have made a bunch of stuff here, some of it useful some of it less useful, but all in a vacuum to improve my programming
 *    and hopefully be able to implement better eye candy into my projects. The way we handle draw particle/new particle functions
-*    needs to be reworked
+*    needs to be changed at some point
 *
 **************************************/
 
@@ -1111,47 +1111,74 @@ function createParticleSystem(
     return sys;
 }
 
-function updateParticleSystem(sys,fps,timeStamp){
-    // Add all the particles we will keep to this array, to avoid using splice to remove particles
-    let newArray = [];
-    for (let j in sys.particles) {
-        let p = sys.particles[j];
+// To be called once per frame
+function updateParticleSystems(fps,timeStamp){
+    // Update particle systems
+    for (let i=particleSystems.length-1;i>=0;i--) {
+        let sys = particleSystems[i];
 
-        // Only use the particle if it is not going to be destroyed
-        if(timeStamp<p.destroyTime){
-            p.x += p.velX/fps;
-            p.y += p.velY/fps;
-            p.velX += p.accX/fps;
-            p.velY += p.accY/fps;
-            p.velY += sys.gravity/fps;
-            newArray.push(p);
-        }
-    }
+        // Add all the particles we will keep to this array, to avoid using splice to remove particles
+        let newArray = [];
+        for (let j in sys.particles) {
+            let p = sys.particles[j];
 
-    if(sys.createNewParticles){
-        // If enough time has elapsed, create particle!
-        while (timeStamp-sys.timeOfLastCreate >= 1000/sys.particlesPerSec && sys.particlesLeft > 0) {
-
-            newArray.push(sys.newParticle(timeStamp));
-            sys.timeOfLastCreate = sys.timeOfLastCreate + 1000/sys.particlesPerSec;
-
-            //if the timestamp is way too off the current schedule (because the animation was stalled),
-            //shift the schedule even though doing so may lead to a slight inaccuracy (200ms chosen arbitirarily)
-            if(sys.timeOfLastCreate+200 < timeStamp){
-                sys.timeOfLastCreate=timeStamp;
+            // Only use the particle if it is not going to be destroyed
+            if(timeStamp<p.destroyTime){
+                p.x += p.velX/fps;
+                p.y += p.velY/fps;
+                p.velX += p.accX/fps;
+                p.velY += p.accY/fps;
+                p.velY += sys.gravity/fps;
+                newArray.push(p)
             }
-
-            if(sys.systemLifespan+sys.createTime<=timeStamp){
-                sys.createNewParticles = false;
-            }
-            sys.particlesLeft--;
         }
+
+        if(sys.createNewParticles){
+            // If enough time has elapsed, create particle!
+            while (timeStamp-sys.timeOfLastCreate >= 1000/sys.particlesPerSec && sys.particlesLeft > 0) {
+
+                newArray.push(sys.newParticle(timeStamp));
+                sys.timeOfLastCreate = sys.timeOfLastCreate + 1000/sys.particlesPerSec;
+
+                //if the timestamp is way too off the current schedule (because the animation was stalled),
+                //shift the schedule even though doing so may lead to a slight inaccuracy (200ms chosen arbitirarily)
+                if(sys.timeOfLastCreate+200 < timeStamp){
+                    sys.timeOfLastCreate=timeStamp;
+                }
+
+                if(sys.systemLifespan+sys.createTime<=timeStamp){
+                    sys.createNewParticles = false;
+                }
+                sys.particlesLeft--;
+            }
+        } else if(sys.particles.length == 0 && sys.temporary){
+            // If system is out of particles, destroy it!
+            particleSystems.splice(i,1);
+            //alert("Murdering system at index " + i + " D:")
+        }
+        if(sys.particlesLeft === 0){
+            sys.createNewParticles = false;
+        }
+        sys.particles = newArray;
     }
-    if(sys.particlesLeft === 0){
-        sys.createNewParticles = false;
-    }
-    sys.particles = newArray;
 }
+
+
+// It is march 2025, and I am working on this project for the first time in quite a few months.
+
+// What I have decided to do first is to work on some menus for the game, especially the main menu and it's submenus
+// This is because i have figured out that main menu design is actually quite important for the game and at this point
+//I want to use it as a way to get my toes wet again after such a long break from the project.
+
+function mainMenuLoop(timeStamp){
+
+}
+
+
+// I have put a lot of functions that have to do with the game outside of the Game object, it is not necessary the most logical
+//system at first glance but this is how it worked out and it works fine.
+
+// Those functions that need to be passed data that is stored in the game object is below.
 
 // Call to initialize the game when no save file is being loaded and the game is to start from the beginning
 function initializeNewSaveGame(playerKanjiData,playerTheoryData,playerAbilityData,playerStatData,playerConditions){
@@ -3900,15 +3927,18 @@ function Game(){
             }
     
             let applyBlurAndFade = function(){
+                
                 if (blur > 0) {
                     context.filter = `blur(${blur}px)`;
-                    // The canvas can draw itself lol
+
                     context.drawImage(canvas,
                         globalWorldData.worldX, globalWorldData.worldY, globalWorldData.worldX+18*16*2*globalWorldData.sizeMod, globalWorldData.worldY+18*16*2*globalWorldData.sizeMod,
                         globalWorldData.worldX, globalWorldData.worldY, globalWorldData.worldX+18*16*2*globalWorldData.sizeMod, globalWorldData.worldY+18*16*2*globalWorldData.sizeMod,
                      );
+
                     context.filter = "none";
                 }
+                
                 if(fadeout !== null){
                     let fadeProgress = (timeStamp - fadeout.fadeStartTime)/fadeout.duration;
                     context.fillStyle = `hsla(0, 0%, 0%, ${fadeProgress})`;
@@ -5715,53 +5745,7 @@ function Game(){
         updateGame(timeStamp);
 
         // Update particle systems
-        for (let i=particleSystems.length-1;i>=0;i--) {
-            let sys = particleSystems[i];
-
-            // Add all the particles we will keep to this array, to avoid using splice to remove particles
-            let newArray = [];
-            for (let j in sys.particles) {
-                let p = sys.particles[j];
-
-                // Only use the particle if it is not going to be destroyed
-                if(timeStamp<p.destroyTime){
-                    p.x += p.velX/fps;
-                    p.y += p.velY/fps;
-                    p.velX += p.accX/fps;
-                    p.velY += p.accY/fps;
-                    p.velY += sys.gravity/fps;
-                    newArray.push(p)
-                }
-            }
-
-            if(sys.createNewParticles){
-                // If enough time has elapsed, create particle!
-                while (timeStamp-sys.timeOfLastCreate >= 1000/sys.particlesPerSec && sys.particlesLeft > 0) {
-
-                    newArray.push(sys.newParticle(timeStamp));
-                    sys.timeOfLastCreate = sys.timeOfLastCreate + 1000/sys.particlesPerSec;
-
-                    //if the timestamp is way too off the current schedule (because the animation was stalled),
-                    //shift the schedule even though doing so may lead to a slight inaccuracy (200ms chosen arbitirarily)
-                    if(sys.timeOfLastCreate+200 < timeStamp){
-                        sys.timeOfLastCreate=timeStamp;
-                    }
-
-                    if(sys.systemLifespan+sys.createTime<=timeStamp){
-                        sys.createNewParticles = false;
-                    }
-                    sys.particlesLeft--;
-                }
-            } else if(sys.particles.length == 0 && sys.temporary){
-                // If system is out of particles, destroy it!
-                particleSystems.splice(i,1);
-                //alert("Murdering system at index " + i + " D:")
-            }
-            if(sys.particlesLeft === 0){
-                sys.createNewParticles = false;
-            }
-            sys.particles = newArray;
-        }
+        updateParticleSystems(fps,timeStamp);
 
         // ******************************
         // Updating logic finished, next is the drawing phase
